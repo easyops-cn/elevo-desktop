@@ -1,19 +1,27 @@
-use tauri::menu::{MenuBuilder, SubmenuBuilder};
+use tauri::menu::{Menu, MenuBuilder, SubmenuBuilder};
 use tauri::AppHandle;
 
-pub fn menu() -> tauri::menu::Menu {
-    let app_menu = SubmenuBuilder::new(app, "Cinny")
-        .about(Some(Default::default()))
+/// 创建 macOS 原生菜单
+///
+/// # Arguments
+/// * `app` - Tauri 应用句柄
+///
+/// # Returns
+/// * `Result<Menu<tauri::Wry>, tauri::Error>` - 菜单对象或错误
+pub fn create_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Error> {
+    // 应用菜单（macOS 第一个菜单）
+    let app_menu = SubmenuBuilder::new(app, "Elevo")
+        .about(None)
         .separator()
         .hide()
         .hide_others()
         .show_all()
         .separator()
         .quit()
-        .build()
-        .unwrap();
+        .build()?;
 
-    let edit_menu = SubmenuBuilder::new(app, "Edit")
+    // 编辑菜单
+    let edit_menu = SubmenuBuilder::new(app, "编辑")
         .undo()
         .redo()
         .separator()
@@ -21,18 +29,18 @@ pub fn menu() -> tauri::menu::Menu {
         .copy()
         .paste()
         .select_all()
-        .build()
-        .unwrap();
+        .build()?;
 
-    let view_menu = SubmenuBuilder::new(app, "View")
-        .fullscreen() // `.fullscreen()` works instead of `.enter_fullscreen()`
-        .build()
-        .unwrap();
+    // 视图菜单
+    let view_menu = SubmenuBuilder::new(app, "视图")
+        .fullscreen()
+        .build()?;
 
-    let window_menu = SubmenuBuilder::new(app, "Window")
+    // 窗口菜单
+    let window_menu = SubmenuBuilder::new(app, "窗口")
         .minimize()
-        .build() // no `.zoom()` method directly available
-        .unwrap();
+        .close_window()
+        .build()?;
 
     MenuBuilder::new(app)
         .item(&app_menu)
@@ -40,5 +48,4 @@ pub fn menu() -> tauri::menu::Menu {
         .item(&view_menu)
         .item(&window_menu)
         .build()
-        .unwrap()
 }

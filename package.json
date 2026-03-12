@@ -1,7 +1,7 @@
 {
-  "name": "cinny",
+  "name": "elevo",
   "version": "4.10.5",
-  "description": "Yet another matrix client",
+  "description": "Elevo - Matrix client desktop application",
   "main": "index.js",
   "engines": {
     "node": ">=16.0.0"
