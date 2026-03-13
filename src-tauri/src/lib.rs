@@ -56,7 +56,7 @@ pub fn run() {
             let url = format!("http://localhost:{}", port).parse().unwrap();
             let window_url = WebviewUrl::External(url);
             WebviewWindowBuilder::new(app, "main".to_string(), window_url)
-                .title("Elevo")
+                .title("Elevo Messenger")
                 .build()?;
 
             // 创建托盘菜单

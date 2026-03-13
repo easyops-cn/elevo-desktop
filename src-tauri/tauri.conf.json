@@ -22,7 +22,7 @@
     "externalBin": [],
     "copyright": "",
     "category": "SocialNetworking",
-    "shortDescription": "Yet another matrix client",
+    "shortDescription": "A modern Matrix client for seamless communication",
     "longDescription": "",
     "macOS": {
       "frameworks": [],
