@@ -6,6 +6,7 @@
 mod menu;
 
 use tauri::{
+    include_image,
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     webview::WebviewWindowBuilder,
@@ -63,7 +64,13 @@ pub fn run() {
             let quit_item = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
             let tray_menu = Menu::with_items(app, &[&show_item, &quit_item])?;
 
-            // 加载托盘图标（使用应用默认图标）
+            // 加载托盘图标
+            // macOS 菜单栏通常是浅色/深色自适应，使用白色图标更清晰
+            // 其他平台使用应用默认图标
+            #[cfg(target_os = "macos")]
+            let icon = include_image!("icons/tray/128x128.png");
+
+            #[cfg(not(target_os = "macos"))]
             let icon = app
                 .default_window_icon()
                 .cloned()
