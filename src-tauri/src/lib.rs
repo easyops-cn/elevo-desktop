@@ -5,22 +5,147 @@
 
 // mod menu;
 
-use tauri::{webview::WebviewWindowBuilder, WebviewUrl};
+use tauri::{webview::WebviewWindowBuilder, Emitter, Manager, WebviewUrl};
+
+// Allowed domains for in-app webview (supports subdomain matching).
+// Replace with actual trusted domains before shipping.
+const ALLOWED_DOMAINS: &[&str] = &[
+    "192.168.0.79",
+    "easyops.local",
+    "github.com",
+];
+
+fn is_domain_allowed(url: &str) -> bool {
+    if let Ok(parsed) = url::Url::parse(url) {
+        if let Some(host) = parsed.host_str() {
+            return ALLOWED_DOMAINS.iter().any(|d| {
+                host == *d || host.ends_with(&format!(".{}", d))
+            });
+        }
+    }
+    false
+}
+
+/// JS injected into every page of a child webview before any page script runs.
+/// The script template lives in `scripts/webview-sdk.js` and is embedded at
+/// compile time via `include_str!`. The placeholder `__WEBVIEW_LABEL__` is
+/// replaced at runtime with the JSON-encoded label string.
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+fn sdk_initialization_script(label: &str) -> String {
+    const TEMPLATE: &str = include_str!("../scripts/webview-sdk.js");
+    TEMPLATE.replace("__WEBVIEW_LABEL__", &serde_json::to_string(label).unwrap())
+}
+
+// ── Desktop-only commands ────────────────────────────────────────────────────
+
+/// Open a URL in a new in-app WebviewWindow (desktop only).
+/// Reuses an existing window with the same label if one already exists.
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+#[tauri::command]
+async fn open_webview(
+    app: tauri::AppHandle,
+    url: String,
+    label: String,
+) -> Result<(), String> {
+    if !is_domain_allowed(&url) {
+        return Err(format!("Domain not in allowlist: {}", url));
+    }
+
+    if let Some(existing) = app.get_webview_window(&label) {
+        existing.set_focus().map_err(|e: tauri::Error| e.to_string())?;
+        return Ok(());
+    }
+
+    let parsed: tauri::Url = url.parse().map_err(|e: url::ParseError| e.to_string())?;
+    let script = sdk_initialization_script(&label);
+    let title = parsed
+        .host_str()
+        .map(|h| format!("App View: {}", h))
+        .unwrap_or_else(|| label.clone());
+
+    WebviewWindowBuilder::new(&app, &label, WebviewUrl::External(parsed))
+        .title(&title)
+        .inner_size(1024.0, 768.0)
+        .initialization_script(&script)
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+/// Relay a message from a child webview to the main window via a Tauri event.
+/// Event name: "elevo-messenger-sdk-message"
+/// Payload: { source: String, channel: String, data: Value }
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+#[tauri::command]
+async fn relay_sdk_message(
+    app: tauri::AppHandle,
+    source_label: String,
+    channel: String,
+    data: serde_json::Value,
+) -> Result<(), String> {
+    if let Some(main) = app.get_webview_window("main") {
+        main.emit(
+            "elevo-messenger-sdk-message",
+            serde_json::json!({ "source": source_label, "channel": channel, "data": data }),
+        )
+        .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+/// Push a message from the main window into a child webview by calling
+/// `window.__ElevoMessengerSDK_receive__` via eval.
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+#[tauri::command]
+async fn send_to_webview(
+    app: tauri::AppHandle,
+    label: String,
+    channel: String,
+    data: serde_json::Value,
+) -> Result<(), String> {
+    if let Some(child) = app.get_webview_window(&label) {
+        let js = format!(
+            "window.__ElevoMessengerSDK_receive__ && window.__ElevoMessengerSDK_receive__({}, {})",
+            serde_json::to_string(&channel).unwrap(),
+            serde_json::to_string(&data).unwrap(),
+        );
+        child.eval(&js).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+/// Close a child webview by label.
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+#[tauri::command]
+async fn close_webview(app: tauri::AppHandle, label: String) -> Result<(), String> {
+    if let Some(w) = app.get_webview_window(&label) {
+        w.close().map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+// ── App entry point ──────────────────────────────────────────────────────────
 
 pub fn run() {
     let port: u16 = 44548;
     let context = tauri::generate_context!();
     let builder = tauri::Builder::default();
 
-    // #[cfg(target_os = "macos")]
-    // {
-    //     builder = builder.menu(menu::menu());
-    // }
-
     builder
         .plugin(tauri_plugin_localhost::Builder::new(port).build())
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_opener::init())
+        .invoke_handler(tauri::generate_handler![
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            open_webview,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            relay_sdk_message,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            send_to_webview,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            close_webview,
+        ])
         .setup(move |app| {
             // Dev: use devUrl from tauri.conf.json (http://localhost:8080) to support HMR
             #[cfg(debug_assertions)]
