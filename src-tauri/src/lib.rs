@@ -10,6 +10,7 @@ use tauri::{webview::WebviewWindowBuilder, Emitter, Manager, WebviewUrl};
 // Allowed domains for in-app webview (supports subdomain matching).
 // Replace with actual trusted domains before shipping.
 const ALLOWED_DOMAINS: &[&str] = &[
+    "localhost",
     "192.168.0.79",
     "easyops.local",
     "github.com",
