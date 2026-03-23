@@ -5,7 +5,13 @@
 
 // mod menu;
 
-use tauri::{webview::WebviewWindowBuilder, Emitter, Manager, WebviewUrl};
+use std::collections::HashMap;
+use std::sync::Mutex;
+
+use tauri::{webview::WebviewWindowBuilder, Emitter, Manager, State, WebviewUrl};
+
+/// Managed state that maps each child webview label to its associated roomId.
+struct WebviewRoomMap(Mutex<HashMap<String, String>>);
 
 // Allowed domains for in-app webview (supports subdomain matching).
 // Replace with actual trusted domains before shipping.
@@ -26,12 +32,14 @@ fn is_domain_allowed(url: &str) -> bool {
 
 /// JS injected into every page of a child webview before any page script runs.
 /// The script template lives in `scripts/webview-sdk.js` and is embedded at
-/// compile time via `include_str!`. The placeholder `__WEBVIEW_LABEL__` is
-/// replaced at runtime with the JSON-encoded label string.
+/// compile time via `include_str!`. The placeholders `__WEBVIEW_LABEL__` and
+/// `__ROOM_ID__` are replaced at runtime with their JSON-encoded values.
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
-fn sdk_initialization_script(label: &str) -> String {
+fn sdk_initialization_script(label: &str, room_id: &str) -> String {
     const TEMPLATE: &str = include_str!("../scripts/webview-sdk.js");
-    TEMPLATE.replace("__WEBVIEW_LABEL__", &serde_json::to_string(label).unwrap())
+    TEMPLATE
+        .replace("__WEBVIEW_LABEL__", &serde_json::to_string(label).unwrap())
+        .replace("__ROOM_ID__", &serde_json::to_string(room_id).unwrap())
 }
 
 // ── Desktop-only commands ────────────────────────────────────────────────────
@@ -42,8 +50,10 @@ fn sdk_initialization_script(label: &str) -> String {
 #[tauri::command]
 async fn open_webview(
     app: tauri::AppHandle,
+    state: State<'_, WebviewRoomMap>,
     url: String,
     label: String,
+    room_id: String,
 ) -> Result<(), String> {
     if !is_domain_allowed(&url) {
         return Err(format!("Domain not in allowlist: {}", url));
@@ -55,7 +65,7 @@ async fn open_webview(
     }
 
     let parsed: tauri::Url = url.parse().map_err(|e: url::ParseError| e.to_string())?;
-    let script = sdk_initialization_script(&label);
+    let script = sdk_initialization_script(&label, &room_id);
     let title = parsed
         .host_str()
         .map(|h| format!("App View: {}", h))
@@ -67,6 +77,13 @@ async fn open_webview(
         .initialization_script(&script)
         .build()
         .map_err(|e| e.to_string())?;
+
+    // Store label → roomId mapping for later filtering.
+    state
+        .0
+        .lock()
+        .map_err(|e| e.to_string())?
+        .insert(label.clone(), room_id);
 
     // Notify main window when this webview is opened.
     if let Some(main) = app.get_webview_window("main") {
@@ -95,19 +112,20 @@ async fn open_webview(
 
 /// Relay a message from a child webview to the main window via a Tauri event.
 /// Event name: "elevo-messenger-sdk-message"
-/// Payload: { source: String, channel: String, data: Value }
+/// Payload: { source: String, roomId: String, channel: String, data: Value }
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 #[tauri::command]
 async fn relay_sdk_message(
     app: tauri::AppHandle,
     source_label: String,
+    room_id: String,
     channel: String,
     data: serde_json::Value,
 ) -> Result<(), String> {
     if let Some(main) = app.get_webview_window("main") {
         main.emit(
             "elevo-messenger-sdk-message",
-            serde_json::json!({ "source": source_label, "channel": channel, "data": data }),
+            serde_json::json!({ "source": source_label, "roomId": room_id, "channel": channel, "data": data }),
         )
         .map_err(|e| e.to_string())?;
     }
@@ -135,12 +153,15 @@ async fn send_to_webview(
     Ok(())
 }
 
-/// Broadcast a message from the main window to **all** child webviews by calling
-/// `window.__ElevoMessengerSDK_receive__` via eval on each.
+/// Broadcast a message from the main window to child webviews that belong to
+/// the given roomId, by calling `window.__ElevoMessengerSDK_receive__` via eval
+/// on each matching webview.
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 #[tauri::command]
 async fn send_to_all_webviews(
     app: tauri::AppHandle,
+    state: State<'_, WebviewRoomMap>,
+    room_id: String,
     channel: String,
     data: serde_json::Value,
 ) -> Result<(), String> {
@@ -149,23 +170,30 @@ async fn send_to_all_webviews(
         serde_json::to_string(&channel).unwrap(),
         serde_json::to_string(&data).unwrap(),
     );
-    for (_label, window) in app.webview_windows() {
-        // Skip the main window itself
+    let map = state.0.lock().map_err(|e| e.to_string())?;
+    for (label, window) in app.webview_windows() {
         if window.label() == "main" {
             continue;
         }
-        let _ = window.eval(&js);
+        if map.get(&label).map(|r| r == &room_id).unwrap_or(false) {
+            let _ = window.eval(&js);
+        }
     }
     Ok(())
 }
 
-/// Close a child webview by label.
+/// Close a child webview by label and remove its roomId mapping.
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 #[tauri::command]
-async fn close_webview(app: tauri::AppHandle, label: String) -> Result<(), String> {
+async fn close_webview(
+    app: tauri::AppHandle,
+    state: State<'_, WebviewRoomMap>,
+    label: String,
+) -> Result<(), String> {
     if let Some(w) = app.get_webview_window(&label) {
         w.close().map_err(|e| e.to_string())?;
     }
+    state.0.lock().map_err(|e| e.to_string())?.remove(&label);
     Ok(())
 }
 
@@ -180,6 +208,7 @@ pub fn run() {
         .plugin(tauri_plugin_localhost::Builder::new(port).build())
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_opener::init())
+        .manage(WebviewRoomMap(Mutex::new(HashMap::new())))
         .invoke_handler(tauri::generate_handler![
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             open_webview,

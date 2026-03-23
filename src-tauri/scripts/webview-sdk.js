@@ -1,8 +1,9 @@
 (function () {
   if (window.ElevoMessengerSDK) return;
 
-  // __WEBVIEW_LABEL__ is replaced at runtime by Rust before injection.
+  // __WEBVIEW_LABEL__ and __ROOM_ID__ are replaced at runtime by Rust.
   var LABEL = __WEBVIEW_LABEL__;
+  var ROOM_ID = __ROOM_ID__;
   var handlers = {};
 
   // Called by Rust (via webview.eval) to push a message into this webview.
@@ -34,6 +35,7 @@
     sendMessage: function (channel, data) {
       return tauriInvoke('relay_sdk_message', {
         sourceLabel: LABEL,
+        roomId: ROOM_ID,
         channel: channel,
         data: data,
       });
@@ -57,10 +59,14 @@
       return LABEL;
     },
 
+    getRoomId: function () {
+      return ROOM_ID;
+    },
+
     close: function () {
       return tauriInvoke('close_webview', { label: LABEL });
     },
   };
 
-  console.log('[ElevoMessengerSDK] initialized, label:', LABEL);
+  console.log('[ElevoMessengerSDK] initialized, label:', LABEL, ', roomId:', ROOM_ID);
 })();
