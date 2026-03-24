@@ -1,13 +1,7 @@
 {
-  "defaultHomeserver": 1,
-  "homeserverList": [
-    "converser.eu",
-    "matrix.org",
-    "mozilla.org",
-    "unredacted.org",
-    "xmr.se"
-  ],
-  "allowCustomHomeservers": true,
+  "defaultHomeserver": 0,
+  "homeserverList": ["m.easyops.local"],
+  "allowCustomHomeservers": false,
 
   "featuredCommunities": {
     "openAsDefault": false,
@@ -33,5 +27,11 @@
   "hashRouter": {
     "enabled": true,
     "basename": "/"
+  },
+
+  "elevoWorkspacesApiBaseUrl": "http://172.30.0.188:8082",
+  "elevoTenantNames": {
+    "019cf955e94d74a3bf1a8a79c7578706": "Elevo",
+    "019cf7beef6d7142981cb8d26da70916": "Javis"
   }
 }
