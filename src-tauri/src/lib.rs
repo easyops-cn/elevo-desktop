@@ -233,11 +233,55 @@ pub fn run() {
                 WebviewUrl::External(url)
             };
 
-            WebviewWindowBuilder::new(app, "main".to_string(), window_url)
+            let window = WebviewWindowBuilder::new(app, "main".to_string(), window_url)
                 .title("Cinny")
                 .build()?;
+
+            // Desktop: intercept close to hide the window instead of quitting;
+            // the tray icon lets the user bring it back.
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            {
+                let win_clone = window.clone();
+                window.on_window_event(move |event| {
+                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                        api.prevent_close();
+                        let _ = win_clone.hide();
+                    }
+                });
+
+                let handle = app.handle().clone();
+                tauri::tray::TrayIconBuilder::new()
+                    .icon(app.default_window_icon().unwrap().clone())
+                    .tooltip("Cinny")
+                    .on_tray_icon_event(move |_tray, event| {
+                        if let tauri::tray::TrayIconEvent::Click {
+                            button: tauri::tray::MouseButton::Left,
+                            button_state: tauri::tray::MouseButtonState::Up,
+                            ..
+                        } = event
+                        {
+                            if let Some(win) = handle.get_webview_window("main") {
+                                let _ = win.show();
+                                let _ = win.set_focus();
+                            }
+                        }
+                    })
+                    .build(app)?;
+            }
+
+            #[cfg(any(target_os = "android", target_os = "ios"))]
+            drop(window);
+
             Ok(())
         })
-        .run(context)
-        .expect("error while building tauri application");
+        .build(context)
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            if let tauri::RunEvent::Reopen { .. } = event {
+                if let Some(win) = app.get_webview_window("main") {
+                    let _ = win.show();
+                    let _ = win.set_focus();
+                }
+            }
+        });
 }
