@@ -11,7 +11,8 @@ Elevo Desktop 是一个基于 Tauri v2 的 Matrix 即时通讯客户端桌面应
 ```bash
 make init          # 初始化/同步子模块
 make install       # 安装所有依赖（前端 + Tauri）
-make dev           # 启动开发服务器
+make dev           # 启动开发服务器（Tauri 应用）
+make dev-web       # 仅启动前端服务器（浏览器访问 http://localhost:8080）
 make build         # 构建生产版本
 make build-macos   # 构建 macOS universal 版本
 make clean         # 清理构建产物

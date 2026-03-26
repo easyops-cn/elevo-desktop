@@ -1,4 +1,4 @@
-.PHONY: all init install install-frontend install-tauri dev build build-macos clean help
+.PHONY: all init install install-frontend install-tauri dev dev-web build build-macos clean help
 
 # 默认目标：安装所有依赖
 all: install
@@ -23,6 +23,10 @@ install-tauri:
 dev:
 	npm run tauri dev
 
+# 仅启动前端开发服务器（浏览器访问 http://localhost:8080）
+dev-web:
+	cd cinny && npm start
+
 # 构建生产版本
 build:
 	npm run tauri build
@@ -43,7 +47,8 @@ help:
 	@echo "  make install          - 安装所有依赖（前端 + Tauri）"
 	@echo "  make install-frontend - 仅安装前端依赖"
 	@echo "  make install-tauri    - 仅安装 Tauri 依赖"
-	@echo "  make dev              - 启动开发服务器"
+	@echo "  make dev              - 启动开发服务器（Tauri 应用）"
+	@echo "  make dev-web          - 仅启动前端服务器（浏览器访问 http://localhost:8080）"
 	@echo "  make build            - 构建生产版本"
 	@echo "  make build-macos      - 构建 macOS ARM 版本 (Apple Silicon)"
 	@echo "  make clean            - 清理构建产物"
