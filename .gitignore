@@ -4,3 +4,9 @@ node_modules
 devAssets
 
 .DS_Store
+
+# Claude Code
+.claude/
+
+# Build artifacts
+createUpdaterArtifacts
