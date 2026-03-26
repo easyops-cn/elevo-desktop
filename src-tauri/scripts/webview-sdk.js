@@ -4,9 +4,10 @@
     if (global.elevoMessengerSDK ||
         !tauriInternals)
         return;
-    // __WEBVIEW_LABEL__ and __ROOM_ID__ are replaced at runtime by Rust before injection.
+    // __WEBVIEW_LABEL__, __ROOM_ID__ and __THEME__ are replaced at runtime by Rust before injection.
     const LABEL = __WEBVIEW_LABEL__;
     const ROOM_ID = __ROOM_ID__;
+    let theme = __THEME__;
     const handlers = {};
     // Called by Rust (via webview.eval) to push a message into this webview.
     global.__ElevoMessengerSDK_receive__ = function (channel, data) {
@@ -62,6 +63,17 @@
     const close = () => {
         return tauriInvoke("close_webview", { label: LABEL });
     };
+    const getTheme = () => {
+        return theme;
+    };
+    const onThemeChange = (fn) => {
+        return onMessage("theme_change", function (data) {
+            if (data === "light" || data === "dark") {
+                theme = data;
+                fn(theme);
+            }
+        });
+    };
     const modelContextTools = new Map();
     const modelContext = Object.freeze({
         registerTool(tool) {
@@ -102,6 +114,8 @@
         getLabel,
         getRoomId,
         close,
+        getTheme,
+        onThemeChange,
         modelContext,
     });
     console.log("[ElevoMessengerSDK] initialized, label:", LABEL, ', roomId:', ROOM_ID);

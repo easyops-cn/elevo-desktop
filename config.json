@@ -30,6 +30,7 @@
   },
 
   "elevoWorkspacesApiBaseUrl": "http://172.30.0.188:8082",
+  "elevoWorkspacesExplorerUrl": "http://localhost:5173",
   "elevoTenantNames": {
     "019cf955e94d74a3bf1a8a79c7578706": "Elevo",
     "019cf7beef6d7142981cb8d26da70916": "Javis"
