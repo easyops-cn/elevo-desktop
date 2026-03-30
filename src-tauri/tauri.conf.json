@@ -26,8 +26,7 @@
     "longDescription": "",
     "macOS": {
       "frameworks": [],
-      "minimumSystemVersion": "",
-      "exceptionDomain": "",
+      "exceptionDomain": "localhost",
       "signingIdentity": null,
       "providerShortName": null,
       "entitlements": null
@@ -37,7 +36,7 @@
         "depends": []
       }
     },
-    "createUpdaterArtifacts": true
+    "createUpdaterArtifacts": false
   },
   "build": {
     "beforeBuildCommand": "cd cinny && npm run build",
