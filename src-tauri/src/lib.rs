@@ -13,6 +13,9 @@ use tauri::{webview::WebviewWindowBuilder, Emitter, Manager, State, WebviewUrl};
 /// Managed state that maps each child webview label to its associated roomId.
 struct WebviewRoomMap(Mutex<HashMap<String, String>>);
 
+/// Managed state storing the current theme kind ("light" or "dark").
+struct CurrentTheme(Mutex<String>);
+
 // Allowed domains for in-app webview (supports subdomain matching).
 // Replace with actual trusted domains before shipping.
 const ALLOWED_DOMAINS: &[&str] = &[
@@ -35,11 +38,12 @@ fn is_domain_allowed(url: &str) -> bool {
 /// compile time via `include_str!`. The placeholders `__WEBVIEW_LABEL__` and
 /// `__ROOM_ID__` are replaced at runtime with their JSON-encoded values.
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
-fn sdk_initialization_script(label: &str, room_id: &str) -> String {
+fn sdk_initialization_script(label: &str, room_id: &str, theme: &str) -> String {
     const TEMPLATE: &str = include_str!("../scripts/webview-sdk.js");
     TEMPLATE
         .replace("__WEBVIEW_LABEL__", &serde_json::to_string(label).unwrap())
         .replace("__ROOM_ID__", &serde_json::to_string(room_id).unwrap())
+        .replace("__THEME__", &serde_json::to_string(theme).unwrap())
 }
 
 // ── Desktop-only commands ────────────────────────────────────────────────────
@@ -51,6 +55,7 @@ fn sdk_initialization_script(label: &str, room_id: &str) -> String {
 async fn open_webview(
     app: tauri::AppHandle,
     state: State<'_, WebviewRoomMap>,
+    theme_state: State<'_, CurrentTheme>,
     url: String,
     label: String,
     room_id: String,
@@ -64,8 +69,9 @@ async fn open_webview(
         return Ok(());
     }
 
+    let theme = theme_state.0.lock().map_err(|e| e.to_string())?.clone();
     let parsed: tauri::Url = url.parse().map_err(|e: url::ParseError| e.to_string())?;
-    let script = sdk_initialization_script(&label, &room_id);
+    let script = sdk_initialization_script(&label, &room_id, &theme);
     let title = parsed
         .host_str()
         .map(|h| format!("App View: {}", h))
@@ -182,6 +188,32 @@ async fn send_to_all_webviews(
     Ok(())
 }
 
+/// Update the current theme kind and broadcast a theme_change message to all child webviews.
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+#[tauri::command]
+async fn set_theme(
+    app: tauri::AppHandle,
+    theme_state: State<'_, CurrentTheme>,
+    theme_kind: String,
+) -> Result<(), String> {
+    if theme_kind != "light" && theme_kind != "dark" {
+        return Err(format!("Invalid theme kind: {}", theme_kind));
+    }
+    *theme_state.0.lock().map_err(|e| e.to_string())? = theme_kind.clone();
+
+    let js = format!(
+        "window.__ElevoMessengerSDK_receive__ && window.__ElevoMessengerSDK_receive__({}, {})",
+        serde_json::to_string("theme_change").unwrap(),
+        serde_json::to_string(&theme_kind).unwrap(),
+    );
+    for (_, window) in app.webview_windows() {
+        if window.label() != "main" {
+            let _ = window.eval(&js);
+        }
+    }
+    Ok(())
+}
+
 /// Close a child webview by label and remove its roomId mapping.
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 #[tauri::command]
@@ -209,6 +241,7 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
         .manage(WebviewRoomMap(Mutex::new(HashMap::new())))
+        .manage(CurrentTheme(Mutex::new("light".to_string())))
         .invoke_handler(tauri::generate_handler![
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             open_webview,
@@ -218,6 +251,8 @@ pub fn run() {
             send_to_webview,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             send_to_all_webviews,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            set_theme,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             close_webview,
         ])
