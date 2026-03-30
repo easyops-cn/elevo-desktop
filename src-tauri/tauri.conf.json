@@ -26,7 +26,6 @@
     "longDescription": "",
     "macOS": {
       "frameworks": [],
-      "exceptionDomain": "localhost",
       "signingIdentity": null,
       "providerShortName": null,
       "entitlements": null
@@ -39,9 +38,9 @@
     "createUpdaterArtifacts": false
   },
   "build": {
-    "beforeBuildCommand": "cd cinny && npm run build",
+    "beforeBuildCommand": "cd cinny && VITE_NO_SERVICE_WORKER=true npm run build",
     "frontendDist": "../cinny/dist",
-    "beforeDevCommand": "cd cinny && npm start",
+    "beforeDevCommand": "cd cinny && VITE_NO_SERVICE_WORKER=true npm start",
     "devUrl": "http://localhost:8080"
   },
   "productName": "Elevo",
