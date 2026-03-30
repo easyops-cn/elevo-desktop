@@ -1,7 +1,7 @@
 {
-  "name": "cinny",
-  "version": "4.11.2",
-  "description": "Yet another matrix client",
+  "name": "elevo",
+  "version": "4.10.5",
+  "description": "Elevo - Matrix client desktop application",
   "main": "index.js",
   "engines": {
     "node": ">=16.0.0"
@@ -29,6 +29,7 @@
   "devDependencies": {
     "@actions/github": "6.0.0",
     "@tauri-apps/cli": "2.7.1",
-    "node-fetch": "3.3.2"
+    "node-fetch": "3.3.2",
+    "sharp": "0.34.5"
   }
 }

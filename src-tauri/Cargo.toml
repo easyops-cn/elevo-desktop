@@ -1,13 +1,13 @@
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [package]
-name = "cinny"
-version = "4.11.2"
-description = "Yet another matrix client"
+name = "elevo"
+version = "4.10.5"
+description = "Elevo - Matrix client desktop application"
 authors = ["Ajay Bura"]
 license = "AGPL-3.0-only"
-repository = "https://github.com/cinnyapp/cinny-desktop"
-default-run = "cinny"
+repository = "https://git.easyops.local/elevo/elevo-desktop"
+default-run = "elevo"
 edition = "2021"
 rust-version = "1.61"
 
@@ -17,7 +17,7 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 serde_json = "1.0.109"
 serde = { version = "1.0.193", features = ["derive"] }
-tauri = { version = "2", features = [ "devtools", "tray-icon"] }
+tauri = { version = "2", features = ["devtools", "tray-icon"] }
 tauri-plugin-localhost = "2"
 tauri-plugin-window-state = "2"
 tauri-plugin-clipboard-manager = "2"
