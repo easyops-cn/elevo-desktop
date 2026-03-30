@@ -236,7 +236,7 @@ pub fn run() {
             };
 
             let window = WebviewWindowBuilder::new(app, "main".to_string(), window_url)
-                .title("Cinny")
+                .title("Elevo Messenger")
                 .build()?;
 
             // Desktop: intercept close to hide the window instead of quitting;
@@ -254,7 +254,7 @@ pub fn run() {
                 let handle = app.handle().clone();
                 tauri::tray::TrayIconBuilder::new()
                     .icon(app.default_window_icon().unwrap().clone())
-                    .tooltip("Cinny")
+                    .tooltip("Elevo Messenger")
                     .on_tray_icon_event(move |_tray, event| {
                         if let tauri::tray::TrayIconEvent::Click {
                             button: tauri::tray::MouseButton::Left,

@@ -1047,11 +1047,13 @@ dependencies = [
  "tauri-plugin-http",
  "tauri-plugin-localhost",
  "tauri-plugin-notification",
+ "tauri-plugin-opener",
  "tauri-plugin-os",
  "tauri-plugin-process",
  "tauri-plugin-shell",
  "tauri-plugin-updater",
  "tauri-plugin-window-state",
+ "url",
 ]
 
 [[package]]
