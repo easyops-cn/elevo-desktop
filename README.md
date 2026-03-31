@@ -37,3 +37,12 @@ To build the app locally, run:
 
 To start local dev server, run:
 * `npm run tauri dev`
+
+## Publishing
+
+### App Store
+
+* `npm run tauri build -- --no-bundle --target universal-apple-darwin --config src-tauri/tauri.appstore.conf.json`
+* `npm run tauri bundle -- --bundles app --target universal-apple-darwin --config src-tauri/tauri.appstore.conf.json --skip-stapling`
+* `xcrun productbuild --sign "<Mac Installer Distribution certificate signing identity>" --component "src-tauri/target/universal-apple-darwin/release/bundle/macos/Elevo Messenger.app" /Applications "Elevo Messenger.pkg"`
+* `xcrun altool --upload-app --type macos --file "Elevo Messenger.pkg" --apiKey $APPLE_API_KEY --apiIssuer $APPLE_API_ISSUER`

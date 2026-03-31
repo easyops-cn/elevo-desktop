@@ -1,0 +1,10 @@
+{
+  "bundle": {
+    "macOS": {
+      "entitlements": "./Entitlements.plist",
+      "files": {
+        "embedded.provisionprofile": "profile/Elevo_Messenger_macOS_AppStore.provisionprofile"
+      }
+    }
+  }
+}

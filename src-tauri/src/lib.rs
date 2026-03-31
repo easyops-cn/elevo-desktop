@@ -3,7 +3,8 @@
     windows_subsystem = "windows"
 )]
 
-// mod menu;
+mod menu;
+mod updater;
 
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -240,6 +241,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_process::init())
         .manage(WebviewRoomMap(Mutex::new(HashMap::new())))
         .manage(CurrentTheme(Mutex::new("light".to_string())))
         .invoke_handler(tauri::generate_handler![
@@ -257,6 +259,40 @@ pub fn run() {
             close_webview,
         ])
         .setup(move |app| {
+            // Initialize updater plugin (desktop only).
+            #[cfg(desktop)]
+            app.handle()
+                .plugin(tauri_plugin_updater::Builder::new().build())?;
+
+            // Build and set application menu (desktop only).
+            #[cfg(desktop)]
+            {
+                let m = menu::build_menu(app)?;
+                app.set_menu(m)?;
+
+                let handle = app.handle().clone();
+                app.on_menu_event(move |_app, event| {
+                    if event.id().as_ref() == menu::CHECK_FOR_UPDATES_ID {
+                        let h = handle.clone();
+                        tauri::async_runtime::spawn(async move {
+                            updater::check_for_update(h, false).await;
+                        });
+                    }
+                });
+            }
+
+            // Auto-check for updates after a short delay (desktop only, silent).
+            #[cfg(desktop)]
+            {
+                let handle_for_update = app.handle().clone();
+                std::thread::spawn(move || {
+                    std::thread::sleep(std::time::Duration::from_secs(5));
+                    tauri::async_runtime::spawn(async move {
+                        updater::check_for_update(handle_for_update, true).await;
+                    });
+                });
+            }
+
             // Dev: devUrl from tauri.conf.json (http://localhost:8080) for HMR
             // Release: custom protocol (tauri://localhost) serves bundled frontend
             let window_url = WebviewUrl::App(Default::default());

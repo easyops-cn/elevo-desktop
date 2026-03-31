@@ -10,3 +10,6 @@ devAssets
 
 # Build artifacts
 createUpdaterArtifacts
+
+/src-tauri/profile
+/*.pkg

@@ -64,5 +64,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_OPTIONS: "--max_old_space_size=4096"
+          APPLE_SIGNING_IDENTITY: "-"
         with:
-          args: ${{ matrix.args }} --config '{"bundle":{"createUpdaterArtifacts":false,"macOS":{"signingIdentity":"-"}}}'
+          args: ${{ matrix.args }} --config '{"bundle":{"createUpdaterArtifacts":false}}'
