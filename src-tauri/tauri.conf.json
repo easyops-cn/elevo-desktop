@@ -40,9 +40,9 @@
     "createUpdaterArtifacts": true
   },
   "build": {
-    "beforeBuildCommand": "cd cinny && VITE_NO_SERVICE_WORKER=true npm run build",
+    "beforeBuildCommand": "cd cinny && npm run build:no-sw",
     "frontendDist": "../cinny/dist",
-    "beforeDevCommand": "cd cinny && VITE_NO_SERVICE_WORKER=true npm start",
+    "beforeDevCommand": "cd cinny && npm run start:no-sw",
     "devUrl": "http://localhost:8080"
   },
   "productName": "Elevo Messenger",
