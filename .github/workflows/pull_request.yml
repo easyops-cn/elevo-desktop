@@ -1,8 +1,9 @@
-name: 'pull_request'
+name: Build pull request
 
 on:
   pull_request:
     types: ['opened', 'synchronize']
+    branches: [ 'main' ]
 
 jobs:
   build-tauri:
