@@ -1,7 +1,7 @@
 {
-  "name": "elevo",
-  "version": "4.10.5",
-  "description": "Elevo - Matrix client desktop application",
+  "name": "elevo-messenger",
+  "version": "1.0.0",
+  "description": "Elevo Messenger - Matrix client desktop application",
   "main": "index.js",
   "engines": {
     "node": ">=16.0.0"
@@ -11,24 +11,14 @@
     "release": "node scripts/release.mjs"
   },
   "keywords": [],
-  "author": "Ajay Bura",
+  "author": "Elevo Team",
   "license": "AGPL-3.0-only",
   "dependencies": {
-    "@tauri-apps/api": "2.7.0",
-    "@tauri-apps/plugin-clipboard-manager": "2.3.0",
-    "@tauri-apps/plugin-dialog": "2.3.2",
-    "@tauri-apps/plugin-fs": "2.4.1",
-    "@tauri-apps/plugin-global-shortcut": "2.3.0",
-    "@tauri-apps/plugin-http": "2.5.1",
-    "@tauri-apps/plugin-notification": "2.3.0",
-    "@tauri-apps/plugin-os": "2.3.0",
-    "@tauri-apps/plugin-process": "2.3.0",
-    "@tauri-apps/plugin-shell": "2.3.0",
-    "@tauri-apps/plugin-updater": "2.9.0"
+    "@tauri-apps/api": "2.10.1"
   },
   "devDependencies": {
     "@actions/github": "6.0.0",
-    "@tauri-apps/cli": "2.7.1",
+    "@tauri-apps/cli": "2.10.1",
     "node-fetch": "3.3.2",
     "sharp": "0.34.5"
   }

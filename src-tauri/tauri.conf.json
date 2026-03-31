@@ -28,7 +28,6 @@
       "frameworks": [],
       "minimumSystemVersion": "",
       "exceptionDomain": "",
-      "signingIdentity": "Developer ID Application: UWin Technology (Shenzhen) Co., Ltd. (C5WFDT5NL9)",
       "providerShortName": null,
       "entitlements": null
     },
@@ -46,14 +45,14 @@
     "devUrl": "http://localhost:8080"
   },
   "productName": "Elevo Messenger",
-  "mainBinaryName": "elevo_messenger",
+  "mainBinaryName": "Elevo Messenger",
   "version": "1.0.0",
   "identifier": "vip.elevo.messenger",
   "plugins": {
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDYyNkJERDMzMjIwNjU4QTIKUldTaVdBWWlNOTFyWXEyN1FjQ0g1Wlg3Z0FBMmo2VDJPTUYrVzlIODU4NzRXdE9lQWUwT25VVWgK",
       "endpoints": [
-        "https://github.com/easyops-cn/elevo-desktop/releases/download/tauri/release.json"
+        "https://github.com/user/repo/releases/latest/download/latest.json"
       ]
     }
   },
