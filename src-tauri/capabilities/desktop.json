@@ -11,6 +11,7 @@
   "permissions": [
     "updater:default",
     "global-shortcut:default",
-    "process:default"
+    "process:default",
+    "deep-link:default"
   ]
 }

@@ -10,6 +10,8 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 
 use tauri::{webview::WebviewWindowBuilder, Emitter, Manager, State, WebviewUrl};
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+use tauri_plugin_deep_link::DeepLinkExt;
 
 /// Managed state that maps each child webview label to its associated roomId.
 struct WebviewRoomMap(Mutex<HashMap<String, String>>);
@@ -242,6 +244,7 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_deep_link::init())
         .manage(WebviewRoomMap(Mutex::new(HashMap::new())))
         .manage(CurrentTheme(Mutex::new("light".to_string())))
         .invoke_handler(tauri::generate_handler![
@@ -263,6 +266,26 @@ pub fn run() {
             #[cfg(desktop)]
             app.handle()
                 .plugin(tauri_plugin_updater::Builder::new().build())?;
+
+            // Register deep link schemes and listen for incoming deep links.
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            {
+                // On Linux/Windows, register schemes at runtime so they work in dev mode.
+                #[cfg(any(target_os = "linux", windows))]
+                app.deep_link().register_all()?;
+
+                // Emit a generic event for every incoming deep link URL so that
+                // any frontend feature (SSO, room links, invites, etc.) can handle it.
+                let handle = app.handle().clone();
+                app.deep_link().on_open_url(move |event| {
+                    let main = handle.get_webview_window("main");
+                    for url in event.urls() {
+                        if let Some(win) = &main {
+                            let _ = win.emit("deep-link-received", url.as_str());
+                        }
+                    }
+                });
+            }
 
             // Build and set application menu (desktop only).
             #[cfg(desktop)]
