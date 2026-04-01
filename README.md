@@ -1,19 +1,19 @@
-# Cinny desktop
+# Elevo Messenger Desktop
 
-<a href="https://github.com/cinnyapp/cinny-desktop/releases">
-  <img alt="GitHub release downloads" src="https://img.shields.io/github/downloads/cinnyapp/cinny-desktop/total?style=social"></a>
+<a href="https://github.com/easyops-cn/elevo-desktop/releases">
+  <img alt="GitHub release downloads" src="https://img.shields.io/github/downloads/easyops-cn/elevo-desktop/total?style=social"></a>
 
-Cinny is a matrix client focusing primarily on simple, elegant and secure interface. The desktop app is made with Tauri.
+Elevo Messenger is a matrix client focusing primarily on simple, elegant and secure interface. The desktop app is made with Tauri.
 
 ## Download
 
-Installers for macOS, Windows and Linux can be downloaded from [Github releases](https://github.com/cinnyapp/cinny-desktop/releases). Releases are signed with a [Ed25519](https://ed25519.cr.yp.to/) public-key.
+Installers for macOS, Windows and Linux can be downloaded from [Github releases](https://github.com/easyops-cn/elevo-desktop/releases). Releases are signed with a [Ed25519](https://ed25519.cr.yp.to/) public-key.
 
 Operating System | Download
 ---|---
-Windows | <a href='https://github.com/cinnyapp/cinny-desktop/releases/latest/download/Cinny_desktop-x86_64.msi'>Get it on Windows</a>
-macOS | <a href='https://github.com/cinnyapp/cinny-desktop/releases/latest/download/Cinny_desktop-universal.dmg'>Get it on macOS</a>
-Linux | <a href='https://github.com/cinnyapp/cinny-desktop/releases/latest/download/Cinny_desktop-x86_64.AppImage'>Get it on Linux</a> · <a href='https://flathub.org/apps/details/in.cinny.Cinny'>Flatpak</a>
+Windows | <a href='https://github.com/easyops-cn/elevo-desktop/releases/latest/download/Elevo_Messenger-x86_64.msi'>Get it on Windows</a>
+macOS | <a href='https://github.com/easyops-cn/elevo-desktop/releases/latest/download/Elevo_Messenger-universal.dmg'>Get it on macOS</a>
+Linux | <a href='https://github.com/easyops-cn/elevo-desktop/releases/latest/download/Elevo_Messenger-x86_64.AppImage'>Get it on Linux</a> · <a href='https://flathub.org/apps/details/vip.elevo.messenger'>Flatpak</a>
 
 Decoded public key:
 > RWRflTUQD3RHFtn25QNANCmePR9+4LSK89kAKTMEEB4OKpOFpLMgc64z
@@ -26,7 +26,7 @@ To verify release files, you need to download [minisign](https://jedisct1.github
 Firstly, to setup Rust, NodeJS and build tools follow [Tauri documentation](https://tauri.app/v1/guides/getting-started/prerequisites).
 
 Now, to setup development locally run the following commands:
-* `git clone --recursive https://github.com/cinnyapp/cinny-desktop.git`
+* `git clone --recursive https://github.com/easyops-cn/elevo-desktop.git`
 * `cd cinny-desktop/cinny`
 * `npm ci`
 * `cd ..`
@@ -46,3 +46,8 @@ To start local dev server, run:
 * `npm run tauri bundle -- --bundles app --target universal-apple-darwin --config src-tauri/tauri.appstore.conf.json --skip-stapling`
 * `xcrun productbuild --sign "<Mac Installer Distribution certificate signing identity>" --component "src-tauri/target/universal-apple-darwin/release/bundle/macos/Elevo Messenger.app" /Applications "Elevo Messenger.pkg"`
 * `xcrun altool --upload-app --type macos --file "Elevo Messenger.pkg" --apiKey $APPLE_API_KEY --apiIssuer $APPLE_API_ISSUER`
+
+## License
+This project is forked from [cinnyapp/cinny-desktop](https://github.com/cinnyapp/cinny-desktop), which is licensed under AGPL-3.0.
+
+This project continues to use the same AGPL-3.0 license.

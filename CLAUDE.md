@@ -18,20 +18,12 @@ make build-macos   # 构建 macOS universal 版本
 make clean         # 清理构建产物
 ```
 
-### 发布
-
-```bash
-# 生成 release.json（CI 自动调用）
-GITHUB_TOKEN=xxx npm run release
-```
-
 ## 架构
 
 ### 目录结构
 
 - `src-tauri/` - Rust 后端代码（Tauri 应用）
-- `cinny/` - Git submodule，包含 Cinny Web 前端
-- `scripts/release.mjs` - 发布自动化脚本
+- `cinny/` - Git submodule，包含 Elevo Messenger Web 前端
 
 ### Tauri 后端 (src-tauri/)
 
@@ -42,7 +34,7 @@ GITHUB_TOKEN=xxx npm run release
 
 ### 关键技术细节
 
-- 应用通过 `tauri-plugin-localhost` 在端口 44548 提供前端服务
+- 应用现在使用 Tauri custom protocol `tauri://` （开发时仍使用 http）
 - 使用 `tauri-plugin-window-state` 保存窗口位置和大小
 - 构建时执行 `cd cinny && npm run build`，前端输出到 `cinny/dist`
 - 开发时执行 `cd cinny && npm start`，连接 `http://localhost:8080`
