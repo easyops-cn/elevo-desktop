@@ -8,6 +8,9 @@ devAssets
 # Claude Code
 .claude/
 
+# Private local config overrides (not committed)
+config.local.json
+
 # Build artifacts
 createUpdaterArtifacts
 

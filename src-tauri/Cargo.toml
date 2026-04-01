@@ -28,6 +28,7 @@ tauri-plugin-process = "2"
 tauri-plugin-os = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-opener = "2"
+tauri-plugin-deep-link = "2"
 url = "2"
 
 [features]
@@ -41,6 +42,7 @@ custom-protocol = [ "tauri/custom-protocol" ]
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-updater = "2"
+tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
 
 [lib]
 name = "app_lib"
