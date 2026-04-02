@@ -16,89 +16,14 @@ use tauri_plugin_deep_link::DeepLinkExt;
 /// Returns a platform-specific User-Agent string for the application.
 fn platform_user_agent() -> String {
     let version = env!("CARGO_PKG_VERSION");
-    let (os, os_version) = if cfg!(target_os = "macos") {
-        ("macOS", macos_version())
+    let os = if cfg!(target_os = "macos") {
+        "macOS"
     } else if cfg!(target_os = "windows") {
-        ("Windows", windows_version())
+        "Windows"
     } else {
-        ("Linux", linux_version())
+        "Linux"
     };
-    let device_model = device_model();
-    format!(
-        "ElevoMessenger/{} ({}; {}; {})",
-        version, os, os_version, device_model
-    )
-}
-
-fn macos_version() -> String {
-    std::process::Command::new("sw_vers")
-        .arg("-productVersion")
-        .output()
-        .ok()
-        .and_then(|o| String::from_utf8(o.stdout).ok())
-        .map(|s| s.trim().to_string())
-        .unwrap_or_else(|| "Unknown".to_string())
-}
-
-fn windows_version() -> String {
-    std::process::Command::new("cmd")
-        .args(["/C", "ver"])
-        .output()
-        .ok()
-        .and_then(|o| String::from_utf8(o.stdout).ok())
-        .map(|s| {
-            // Output like: "Microsoft Windows [Version 10.0.19045.3803]"
-            s.trim()
-                .strip_prefix("Microsoft Windows [Version ")
-                .and_then(|v| v.strip_suffix(']'))
-                .unwrap_or("Unknown")
-                .to_string()
-        })
-        .unwrap_or_else(|| "Unknown".to_string())
-}
-
-fn linux_version() -> String {
-    std::fs::read_to_string("/etc/os-release")
-        .ok()
-        .and_then(|content| {
-            content
-                .lines()
-                .find(|l| l.starts_with("PRETTY_NAME="))
-                .and_then(|l| l.strip_prefix("PRETTY_NAME="))
-                .map(|v| v.trim_matches('"').to_string())
-        })
-        .unwrap_or_else(|| "Unknown".to_string())
-}
-
-fn device_model() -> String {
-    if cfg!(target_os = "macos") {
-        std::process::Command::new("sysctl")
-            .args(["-n", "hw.model"])
-            .output()
-            .ok()
-            .and_then(|o| String::from_utf8(o.stdout).ok())
-            .map(|s| s.trim().to_string())
-    } else if cfg!(target_os = "windows") {
-        std::process::Command::new("wmic")
-            .args(["csproduct", "get", "name"])
-            .output()
-            .ok()
-            .and_then(|o| String::from_utf8(o.stdout).ok())
-            .map(|s| {
-                // Output has header "Name\n<model>\n"
-                s.lines()
-                    .nth(1)
-                    .map(|l| l.trim().to_string())
-                    .unwrap_or_default()
-            })
-            .filter(|s| !s.is_empty())
-    } else {
-        std::fs::read_to_string("/sys/class/dmi/id/product_name")
-            .ok()
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-    }
-    .unwrap_or_else(|| "Unknown".to_string())
+    format!("ElevoMessenger/{} ({}; unknown)", version, os)
 }
 
 /// Managed state that maps each child webview label to its associated roomId.
