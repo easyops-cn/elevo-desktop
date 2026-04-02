@@ -10,6 +10,8 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 
 use tauri::{webview::WebviewWindowBuilder, Emitter, Manager, State, WebviewUrl};
+#[cfg(target_os = "macos")]
+use tauri::{TitleBarStyle, LogicalPosition};
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 use tauri_plugin_deep_link::DeepLinkExt;
 
@@ -333,10 +335,22 @@ pub fn run() {
             // Release: custom protocol (tauri://localhost) serves bundled frontend
             let window_url = WebviewUrl::App(Default::default());
 
-            let window = WebviewWindowBuilder::new(app, "main".to_string(), window_url)
+            let builder = WebviewWindowBuilder::new(app, "main".to_string(), window_url)
                 .title("Elevo Messenger")
-                .user_agent(&platform_user_agent())
-                .build()?;
+                .user_agent(&platform_user_agent());
+
+            // macOS: overlay titlebar keeps native traffic lights, hides title text
+            #[cfg(target_os = "macos")]
+            let builder = builder
+                .title_bar_style(TitleBarStyle::Overlay)
+                .hidden_title(true)
+                .traffic_light_position(LogicalPosition::new(12.0, 19.0));
+
+            // Windows/Linux: remove native decorations entirely
+            #[cfg(not(any(target_os = "macos", target_os = "android", target_os = "ios")))]
+            let builder = builder.decorations(false);
+
+            let window = builder.build()?;
 
             // Desktop: intercept close to hide the window instead of quitting;
             // the tray icon lets the user bring it back.

@@ -78,6 +78,7 @@
     "core:app:allow-app-show",
     "core:app:allow-app-hide",
     "clipboard-manager:default",
+    "core:window:allow-toggle-maximize",
     {
       "identifier": "opener:allow-open-url",
       "allow": [{ "url": "http://*" }, { "url": "https://*" }]
