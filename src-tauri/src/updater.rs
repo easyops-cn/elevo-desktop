@@ -32,13 +32,21 @@ fn save_ignored_versions(app: &tauri::AppHandle, versions: &[String]) {
 }
 
 pub async fn check_for_update(app: tauri::AppHandle, silent: bool) {
-    if let Err(e) = do_check_for_update(app, silent).await {
+    if let Err(e) = do_check_for_update(&app, silent).await {
         eprintln!("updater error: {e}");
+        if !silent {
+            let _ = app
+                .dialog()
+                .message(&format!("Failed to check for updates: {e}"))
+                .title("Update Check Failed")
+                .kind(MessageDialogKind::Error)
+                .blocking_show();
+        }
     }
 }
 
 async fn do_check_for_update(
-    app: tauri::AppHandle,
+    app: &tauri::AppHandle,
     silent: bool,
 ) -> tauri_plugin_updater::Result<()> {
     let update = app.updater()?.check().await?;
