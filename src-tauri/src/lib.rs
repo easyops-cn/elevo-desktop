@@ -330,7 +330,7 @@ pub fn run() {
             let builder = builder
                 .title_bar_style(TitleBarStyle::Overlay)
                 .hidden_title(true)
-                .traffic_light_position(LogicalPosition::new(12.0, 19.0));
+                .traffic_light_position(LogicalPosition::new(12.0, 20.0));
 
             // Windows/Linux: remove native decorations entirely
             #[cfg(not(any(target_os = "macos", target_os = "android", target_os = "ios")))]
