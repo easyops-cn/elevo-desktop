@@ -15,19 +15,6 @@ use tauri::{TitleBarStyle, LogicalPosition};
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 use tauri_plugin_deep_link::DeepLinkExt;
 
-/// Returns a platform-specific User-Agent string for the application.
-fn platform_user_agent() -> String {
-    let version = env!("CARGO_PKG_VERSION");
-    let os = if cfg!(target_os = "macos") {
-        "macOS"
-    } else if cfg!(target_os = "windows") {
-        "Windows"
-    } else {
-        "Linux"
-    };
-    format!("ElevoMessenger/{} ({}; unknown)", version, os)
-}
-
 /// Managed state that maps each child webview label to its associated roomId.
 struct WebviewRoomMap(Mutex<HashMap<String, String>>);
 
@@ -336,8 +323,7 @@ pub fn run() {
             let window_url = WebviewUrl::App(Default::default());
 
             let builder = WebviewWindowBuilder::new(app, "main".to_string(), window_url)
-                .title("Elevo Messenger")
-                .user_agent(&platform_user_agent());
+                .title("Elevo Messenger");
 
             // macOS: overlay titlebar keeps native traffic lights, hides title text
             #[cfg(target_os = "macos")]
