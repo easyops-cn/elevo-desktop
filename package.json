@@ -1,6 +1,6 @@
 {
   "name": "elevo-messenger",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Elevo Messenger - Matrix client desktop application",
   "main": "index.js",
   "engines": {
