@@ -87,6 +87,9 @@ jobs:
       - name: install frontend dependencies
         run: npm ci
 
+      - name: copy config.elevo.json to config.local.json
+        run: cp config.elevo.json config.local.json
+
       - uses: tauri-apps/tauri-action@v0.6.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
