@@ -86,7 +86,6 @@ async fn do_check_for_update(
         .dialog()
         .message(&message)
         .title("Update Available")
-        .kind(MessageDialogKind::Info)
         .buttons(MessageDialogButtons::YesNo)
         .blocking_show();
 
@@ -98,7 +97,21 @@ async fn do_check_for_update(
                 || {},
             )
             .await?;
-        app.restart();
+
+        // Prompt the user to restart. On Windows the updater may restart
+        // automatically — we cannot prevent that.
+        let restart_now = app
+            .dialog()
+            .message(
+                "Update downloaded and installed successfully.\n\nRestart now to apply the update?",
+            )
+            .title("Update Complete")
+            .buttons(MessageDialogButtons::YesNo)
+            .blocking_show();
+
+        if restart_now {
+            app.restart();
+        }
     } else {
         // Ask if they want to ignore this version.
         let ignore = app
@@ -107,7 +120,6 @@ async fn do_check_for_update(
                 "Would you like to skip version {version}?\n\nYou won't be reminded about this version again."
             ))
             .title("Skip This Version?")
-            .kind(MessageDialogKind::Info)
             .buttons(MessageDialogButtons::YesNo)
             .blocking_show();
 
