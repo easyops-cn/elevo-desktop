@@ -15,5 +15,10 @@
     "basename": "/"
   },
   
-  "elevoContactsRoomId": "!soqAfmrZyVbUygvYFp:m.easyops.local"
+  "elevoContactsRoomId": "!soqAfmrZyVbUygvYFp:m.easyops.local",
+  "oidcStaticClients": {
+    "m.easyops.local": {
+      "client_id": "01KN6EM534FN1HZ0EDQFP4ZZGS"
+    }
+  }
 }
