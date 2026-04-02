@@ -1,4 +1,4 @@
-<!-- Please read https://github.com/cinnyapp/cinny/blob/dev/CONTRIBUTING.md before submitting your pull request -->
+<!-- Please read https://github.com/easyops-cn/elevo-messenger/blob/main/CONTRIBUTING.md before submitting your pull request -->
 
 ### Description
 <!-- Please include a summary of the change. Please also include relevant motivation and context. List any dependencies that are required for this change. -->

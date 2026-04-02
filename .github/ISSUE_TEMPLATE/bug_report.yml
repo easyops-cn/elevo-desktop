@@ -7,9 +7,9 @@ body:
     attributes:
       value: |
         ## First of all
-        1. Please search for [existing issues](https://github.com/cinnyapp/cinny-desktop/issues?q=is%3Aissue) about this problem first.
-        2. Make sure Cinny is up to date.
-        3. Make sure it's an issue with Cinny and not something else you are using.
+        1. Please search for [existing issues](https://github.com/easyops-cn/elevo-desktop/issues?q=is%3Aissue) about this problem first.
+        2. Make sure Elevo Messenger is up to date.
+        3. Make sure it's an issue with Elevo Messenger and not something else you are using.
         4. Remember to be friendly.
 
   - type: textarea
@@ -41,10 +41,10 @@ body:
     id: info
     attributes:
       label: Platform and versions
-      description: "Provide OS, browser and Cinny version with your Homeserver."
+      description: "Provide OS, browser and Elevo Messenger version with your Homeserver."
       placeholder: |
        1. OS: [e.g. Windows 10, MacOS]
-       2. Cinny version: [e.g. 1.8.1]
+       2. Elevo Messenger version: [e.g. 1.0.0]
        3. Matrix homeserver: [e.g. matrix.org]
        4. Downloaded from: [e.g. GitHub, Flatpak]
       render: shell

@@ -1,8 +1,5 @@
 # Elevo Messenger Desktop
 
-<a href="https://github.com/easyops-cn/elevo-desktop/releases">
-  <img alt="GitHub release downloads" src="https://img.shields.io/github/downloads/easyops-cn/elevo-desktop/total?style=social"></a>
-
 Elevo Messenger is a matrix client focusing primarily on simple, elegant and secure interface. The desktop app is made with Tauri.
 
 ## Download
@@ -27,7 +24,7 @@ Firstly, to setup Rust, NodeJS and build tools follow [Tauri documentation](http
 
 Now, to setup development locally run the following commands:
 * `git clone --recursive https://github.com/easyops-cn/elevo-desktop.git`
-* `cd cinny-desktop/cinny`
+* `cd elevo-desktop/cinny`
 * `npm ci`
 * `cd ..`
 * `npm ci`
