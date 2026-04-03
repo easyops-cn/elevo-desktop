@@ -25,6 +25,8 @@ struct CurrentTheme(Mutex<String>);
 // Replace with actual trusted domains before shipping.
 const ALLOWED_DOMAINS: &[&str] = &[
     "localhost",
+    "easyops.local",
+    "elevo.vip",
 ];
 
 fn is_domain_allowed(url: &str) -> bool {
@@ -300,7 +302,7 @@ pub fn run() {
                     if event.id().as_ref() == menu::CHECK_FOR_UPDATES_ID {
                         let h = handle.clone();
                         tauri::async_runtime::spawn(async move {
-                            updater::check_for_update(h, false).await;
+                            updater::check_for_update(h).await;
                         });
                     }
                 });
@@ -313,7 +315,7 @@ pub fn run() {
                 std::thread::spawn(move || {
                     std::thread::sleep(std::time::Duration::from_secs(5));
                     tauri::async_runtime::spawn(async move {
-                        updater::check_for_update(handle_for_update, true).await;
+                        updater::check_update_silent(handle_for_update).await;
                     });
                 });
             }
