@@ -350,10 +350,28 @@ pub fn run() {
                     }
                 });
 
+                // macOS: use a monochrome template icon so the system auto-adapts
+                // to light/dark menu bar. Non-macOS: use the default (colored) icon.
+                #[cfg(target_os = "macos")]
+                let tray_icon = tauri::image::Image::from_bytes(
+                    include_bytes!("../icons/tray_icon.png"),
+                )
+                .expect("failed to load tray icon");
+
+                #[cfg(not(target_os = "macos"))]
+                let tray_icon = app.default_window_icon().unwrap().clone();
+
                 let handle = app.handle().clone();
-                tauri::tray::TrayIconBuilder::new()
-                    .icon(app.default_window_icon().unwrap().clone())
-                    .tooltip("Elevo Messenger")
+                let mut tray_builder = tauri::tray::TrayIconBuilder::new()
+                    .icon(tray_icon)
+                    .tooltip("Elevo Messenger");
+
+                #[cfg(target_os = "macos")]
+                {
+                    tray_builder = tray_builder.icon_as_template(true);
+                }
+
+                tray_builder
                     .on_tray_icon_event(move |_tray, event| {
                         if let tauri::tray::TrayIconEvent::Click {
                             button: tauri::tray::MouseButton::Left,
