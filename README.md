@@ -8,19 +8,14 @@ Installers for macOS, Windows and Linux can be downloaded from [Github releases]
 
 Operating System | Download
 ---|---
-Windows | <a href='https://github.com/easyops-cn/elevo-desktop/releases/latest/download/Elevo_Messenger-x86_64.msi'>Get it on Windows</a>
-macOS | <a href='https://github.com/easyops-cn/elevo-desktop/releases/latest/download/Elevo_Messenger-universal.dmg'>Get it on macOS</a>
-Linux | <a href='https://github.com/easyops-cn/elevo-desktop/releases/latest/download/Elevo_Messenger-x86_64.AppImage'>Get it on Linux</a> · <a href='https://flathub.org/apps/details/vip.elevo.messenger'>Flatpak</a>
-
-Decoded public key:
-> RWRflTUQD3RHFtn25QNANCmePR9+4LSK89kAKTMEEB4OKpOFpLMgc64z
-
-To verify release files, you need to download [minisign](https://jedisct1.github.io/minisign/) tool and [decode](https://www.base64decode.org/) the *.sig* file before running:
->  minisign -Vm ***RELEASE_FILE.msi.zip*** -P RWRflTUQD3RHFtn25QNANCmePR9+4LSK89kAKTMEEB4OKpOFpLMgc64z -x ***SINGATURE.msi.zip.sig***
+Windows | <a href='https://github.com/easyops-cn/elevo-desktop/releases/latest/download/Elevo.Messenger_1.0.3_x64_en-US.msi'>Get it on Windows</a>
+macOS Apple Silicon | <a href='https://github.com/easyops-cn/elevo-desktop/releases/latest/download/Elevo.Messenger_1.0.3_aarch64.dmg'>Get it on macOS Apple Silicon</a>
+macOS Intel | <a href='https://github.com/easyops-cn/elevo-desktop/releases/latest/download/Elevo.Messenger_1.0.3_x86_64.dmg'>Get it on macOS Intel</a>
+Linux | <a href='https://github.com/easyops-cn/elevo-desktop/releases/latest/download/Elevo.Messenger_1.0.3_amd64.AppImage'>Get it on Linux</a>
 
 ## Local development
 
-Firstly, to setup Rust, NodeJS and build tools follow [Tauri documentation](https://tauri.app/v1/guides/getting-started/prerequisites).
+Firstly, to setup Rust, NodeJS and build tools follow [Tauri documentation](https://v2.tauri.app/start/prerequisites/).
 
 Now, to setup development locally run the following commands:
 * `git clone --recursive https://github.com/easyops-cn/elevo-desktop.git`
