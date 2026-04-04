@@ -358,10 +358,24 @@ pub fn run() {
                 #[cfg(not(target_os = "macos"))]
                 let tray_icon = app.default_window_icon().unwrap().clone();
 
+                // Build tray context menu (right-click).
+                let tray_menu = tauri::menu::MenuBuilder::new(app)
+                    .item(
+                        &tauri::menu::MenuItem::with_id(app, "open", "Open Elevo Messenger", true, None::<&str>)?,
+                    )
+                    .separator()
+                    .item(
+                        &tauri::menu::MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?,
+                    )
+                    .build()?;
+
                 let handle = app.handle().clone();
+                let handle_menu = app.handle().clone();
                 let mut tray_builder = tauri::tray::TrayIconBuilder::new()
                     .icon(tray_icon)
-                    .tooltip("Elevo Messenger");
+                    .tooltip("Elevo Messenger")
+                    .menu(&tray_menu)
+                    .show_menu_on_left_click(false);
 
                 #[cfg(target_os = "macos")]
                 {
@@ -380,6 +394,20 @@ pub fn run() {
                                 let _ = win.show();
                                 let _ = win.set_focus();
                             }
+                        }
+                    })
+                    .on_menu_event(move |_app, event| {
+                        match event.id().as_ref() {
+                            "open" => {
+                                if let Some(win) = handle_menu.get_webview_window("main") {
+                                    let _ = win.show();
+                                    let _ = win.set_focus();
+                                }
+                            }
+                            "quit" => {
+                                handle_menu.exit(0);
+                            }
+                            _ => {}
                         }
                     })
                     .build(app)?;
