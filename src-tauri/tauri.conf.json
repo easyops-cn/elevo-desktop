@@ -57,7 +57,9 @@
     },
     "deep-link": {
       "desktop": {
-        "schemes": ["vip.elevo.messenger"]
+        "schemes": [
+          "vip.elevo.messenger"
+        ]
       }
     }
   },
