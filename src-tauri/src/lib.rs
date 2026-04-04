@@ -300,10 +300,7 @@ pub fn run() {
                 let handle = app.handle().clone();
                 app.on_menu_event(move |_app, event| {
                     if event.id().as_ref() == menu::CHECK_FOR_UPDATES_ID {
-                        let h = handle.clone();
-                        tauri::async_runtime::spawn(async move {
-                            updater::check_for_update(h).await;
-                        });
+                        updater::check_for_update(&handle);
                     }
                 });
             }
@@ -314,9 +311,7 @@ pub fn run() {
                 let handle_for_update = app.handle().clone();
                 std::thread::spawn(move || {
                     std::thread::sleep(std::time::Duration::from_secs(5));
-                    tauri::async_runtime::spawn(async move {
-                        updater::check_update_silent(handle_for_update).await;
-                    });
+                    updater::check_update_silent(&handle_for_update);
                 });
             }
 
