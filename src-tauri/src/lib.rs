@@ -298,8 +298,9 @@ pub fn run() {
                 });
             }
 
-            // Build and set application menu (desktop only).
-            #[cfg(desktop)]
+            // Build and set application menu (macOS only).
+            // Windows/Linux use decorations(false) so no native menu is needed.
+            #[cfg(target_os = "macos")]
             {
                 let m = menu::build_menu(app)?;
                 app.set_menu(m)?;
