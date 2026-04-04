@@ -305,16 +305,6 @@ pub fn run() {
                 });
             }
 
-            // Auto-check for updates after a short delay (desktop only, silent).
-            #[cfg(desktop)]
-            {
-                let handle_for_update = app.handle().clone();
-                std::thread::spawn(move || {
-                    std::thread::sleep(std::time::Duration::from_secs(5));
-                    updater::check_update_silent(&handle_for_update);
-                });
-            }
-
             // Dev: devUrl from tauri.conf.json (http://localhost:8080) for HMR
             // Release: custom protocol (tauri://localhost) serves bundled frontend
             let window_url = WebviewUrl::App(Default::default());
