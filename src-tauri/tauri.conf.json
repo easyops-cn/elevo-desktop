@@ -28,6 +28,7 @@
       "frameworks": [],
       "minimumSystemVersion": "",
       "exceptionDomain": "",
+      "infoPlist": "./Info.plist",
       "providerShortName": null,
       "entitlements": null
     },
