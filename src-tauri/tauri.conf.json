@@ -52,7 +52,8 @@
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDYyNkJERDMzMjIwNjU4QTIKUldTaVdBWWlNOTFyWXEyN1FjQ0g1Wlg3Z0FBMmo2VDJPTUYrVzlIODU4NzRXdE9lQWUwT25VVWgK",
       "endpoints": [
-        "https://github.com/easyops-cn/elevo-desktop/releases/latest/download/latest.json"
+        "https://github.com/easyops-cn/elevo-desktop/releases/latest/download/latest.json",
+        "https://github-mirror.elevo.vip/easyops-cn/elevo-desktop/releases/latest/download/latest.json"
       ]
     },
     "deep-link": {
