@@ -123,6 +123,159 @@ async fn open_webview(
     Ok(())
 }
 
+/// Open a URL in a side panel docked to the right of the main window (desktop only).
+/// Adjusts the main window layout (exits fullscreen, resizes, repositions) to make
+/// room for the panel, which occupies 1/3 of the screen width.
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+#[tauri::command]
+async fn open_side_panel(
+    app: tauri::AppHandle,
+    state: State<'_, WebviewRoomMap>,
+    theme_state: State<'_, CurrentTheme>,
+    url: String,
+    label: String,
+    room_id: String,
+) -> Result<(), String> {
+    if !is_domain_allowed(&url) {
+        return Err(format!("Domain not in allowlist: {}", url));
+    }
+
+    let main_window = app
+        .get_webview_window("main")
+        .ok_or_else(|| "Main window not found".to_string())?;
+
+    // Get monitor info for layout calculations.
+    let monitor = main_window
+        .current_monitor()
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "No monitor found".to_string())?;
+
+    let scale_factor = main_window.scale_factor().map_err(|e| e.to_string())?;
+    let monitor_size = monitor.size();
+    let monitor_pos = monitor.position();
+
+    let screen_w = monitor_size.width as f64;
+    let mon_x = monitor_pos.x as f64;
+    let two_thirds_w = (screen_w * 2.0 / 3.0).round();
+    let one_third_w = (screen_w / 3.0).round();
+
+    // Exit fullscreen / unmaximize so we can resize and reposition.
+    let was_fullscreen = main_window.is_fullscreen().unwrap_or(false);
+    if was_fullscreen {
+        main_window.set_fullscreen(false).map_err(|e| e.to_string())?;
+    }
+    let was_maximized = main_window.is_maximized().unwrap_or(false);
+    if was_maximized {
+        main_window.unmaximize().map_err(|e| e.to_string())?;
+    }
+    // Allow the window manager to settle after fullscreen/maximize transitions.
+    if was_fullscreen || was_maximized {
+        std::thread::sleep(std::time::Duration::from_millis(300));
+    }
+
+    // Read geometry after the transition has settled.
+    let main_pos = main_window.outer_position().map_err(|e| e.to_string())?;
+    let main_size = main_window.outer_size().map_err(|e| e.to_string())?;
+
+    let mut main_w = main_size.width as f64;
+    let main_h = main_size.height as f64;
+    let mut main_x = main_pos.x as f64;
+    let main_y = main_pos.y as f64;
+
+    // Shrink main window if wider than 2/3 screen.
+    if main_w > two_thirds_w {
+        main_w = two_thirds_w;
+        main_window
+            .set_size(tauri::PhysicalSize::new(main_w as u32, main_h as u32))
+            .map_err(|e| e.to_string())?;
+    }
+
+    // Move main window left if not enough room on the right for 1/3 screen.
+    let max_main_x = mon_x + screen_w - main_w - one_third_w;
+    if main_x > max_main_x {
+        main_x = max_main_x;
+        main_window
+            .set_position(tauri::PhysicalPosition::new(main_x as i32, main_y as i32))
+            .map_err(|e| e.to_string())?;
+    }
+
+    // Side panel geometry: docked to the right of the main window.
+    let panel_x = main_x + main_w;
+    let panel_y = main_y;
+    let panel_w = one_third_w;
+    let panel_h = main_h;
+
+    // If the side panel already exists, reposition/resize and focus it.
+    if let Some(existing) = app.get_webview_window(&label) {
+        existing
+            .set_size(tauri::PhysicalSize::new(panel_w as u32, panel_h as u32))
+            .map_err(|e| e.to_string())?;
+        existing
+            .set_position(tauri::PhysicalPosition::new(panel_x as i32, panel_y as i32))
+            .map_err(|e| e.to_string())?;
+        existing.set_focus().map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+
+    // Create the side panel window.
+    let theme = theme_state.0.lock().map_err(|e| e.to_string())?.clone();
+    let parsed: tauri::Url = url.parse().map_err(|e: url::ParseError| e.to_string())?;
+    let script = sdk_initialization_script(&label, &room_id, &theme);
+    let title = parsed
+        .host_str()
+        .map(|h| format!("App View: {}", h))
+        .unwrap_or_else(|| label.clone());
+
+    // WebviewWindowBuilder takes logical pixels (physical / scale_factor).
+    let window = WebviewWindowBuilder::new(&app, &label, WebviewUrl::External(parsed))
+        .title(&title)
+        .inner_size(panel_w / scale_factor, panel_h / scale_factor)
+        .position(panel_x / scale_factor, panel_y / scale_factor)
+        .initialization_script(&script)
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    // Override any state restored by tauri-plugin-window-state so the panel
+    // always appears at the computed position/size, not the saved one.
+    window
+        .set_size(tauri::PhysicalSize::new(panel_w as u32, panel_h as u32))
+        .map_err(|e| e.to_string())?;
+    window
+        .set_position(tauri::PhysicalPosition::new(panel_x as i32, panel_y as i32))
+        .map_err(|e| e.to_string())?;
+
+    // Store label → roomId mapping for later filtering.
+    state
+        .0
+        .lock()
+        .map_err(|e| e.to_string())?
+        .insert(label.clone(), room_id);
+
+    // Notify main window when this webview is opened.
+    if let Some(main) = app.get_webview_window("main") {
+        let _ = main.emit(
+            "webview-opened",
+            serde_json::json!({ "label": &label }),
+        );
+    }
+
+    // Notify main window when this webview is closed.
+    let label_clone = label.clone();
+    let app_clone = app.clone();
+    window.on_window_event(move |event| {
+        if let tauri::WindowEvent::Destroyed = event {
+            if let Some(main) = app_clone.get_webview_window("main") {
+                let _ = main.emit(
+                    "webview-closed",
+                    serde_json::json!({ "label": label_clone }),
+                );
+            }
+        }
+    });
+
+    Ok(())
+}
+
 /// Relay a message from a child webview to the main window via a Tauri event.
 /// Event name: "elevo-messenger-sdk-message"
 /// Payload: { source: String, roomId: String, channel: String, data: Value }
@@ -261,6 +414,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             open_webview,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            open_side_panel,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             relay_sdk_message,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
