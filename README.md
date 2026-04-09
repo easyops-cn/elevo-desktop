@@ -4,14 +4,14 @@ Elevo Messenger is a matrix client focusing primarily on simple, elegant and sec
 
 ## Download
 
-Installers for macOS, Windows and Linux can be downloaded from [Github releases](https://github.com/easyops-cn/elevo-desktop/releases). Releases are signed with a [Ed25519](https://ed25519.cr.yp.to/) public-key.
+Installers for macOS, Windows and Linux can be downloaded from [Github releases](https://github.com/easyops-cn/elevo-desktop/releases).
 
 Operating System | Download
 ---|---
-Windows | <a href='https://github.com/easyops-cn/elevo-desktop/releases/latest/download/Elevo.Messenger_1.0.5_x64_en-US.msi'>Get it on Windows</a>
-macOS Apple Silicon | <a href='https://github.com/easyops-cn/elevo-desktop/releases/latest/download/Elevo.Messenger_1.0.5_aarch64.dmg'>Get it on macOS Apple Silicon</a>
-macOS Intel | <a href='https://github.com/easyops-cn/elevo-desktop/releases/latest/download/Elevo.Messenger_1.0.5_x86_64.dmg'>Get it on macOS Intel</a>
-Linux | <a href='https://github.com/easyops-cn/elevo-desktop/releases/latest/download/Elevo.Messenger_1.0.5_amd64.AppImage'>Get it on Linux</a>
+Windows | <a href='https://github.com/easyops-cn/elevo-desktop/releases/latest/download/Elevo.Messenger_1.0.5_x64_en-US.msi'>Get it for Windows</a>
+macOS Apple Silicon | <a href='https://github.com/easyops-cn/elevo-desktop/releases/latest/download/Elevo.Messenger_1.0.5_aarch64.dmg'>Get it for macOS Apple Silicon</a>
+macOS Intel | <a href='https://github.com/easyops-cn/elevo-desktop/releases/latest/download/Elevo.Messenger_1.0.5_x86_64.dmg'>Get it for macOS Intel</a>
+Linux | <a href='https://github.com/easyops-cn/elevo-desktop/releases/latest/download/Elevo.Messenger_1.0.5_amd64.AppImage'>Get it for Linux</a>
 
 ## Local development
 
