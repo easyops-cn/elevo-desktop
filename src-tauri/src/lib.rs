@@ -9,11 +9,15 @@ mod updater;
 use std::collections::HashMap;
 use std::sync::Mutex;
 
-use tauri::{webview::WebviewWindowBuilder, Emitter, Manager, State, WebviewUrl};
+use tauri::{
+    webview::{NewWindowResponse, WebviewWindowBuilder},
+    Emitter, Manager, State, WebviewUrl,
+};
 #[cfg(target_os = "macos")]
 use tauri::{TitleBarStyle, LogicalPosition};
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 use tauri_plugin_deep_link::DeepLinkExt;
+use tauri_plugin_opener::OpenerExt;
 
 /// Managed state that maps each child webview label to its associated roomId.
 struct WebviewRoomMap(Mutex<HashMap<String, String>>);
@@ -559,8 +563,13 @@ pub fn run() {
             // Release: custom protocol (tauri://localhost) serves bundled frontend
             let window_url = WebviewUrl::App(Default::default());
 
+            let app_handle = app.handle().clone();
             let builder = WebviewWindowBuilder::new(app, "main".to_string(), window_url)
-                .title("Elevo Messenger");
+                .title("Elevo Messenger")
+                .on_new_window(move |url, _features| {
+                    let _ = app_handle.opener().open_url(url.as_str(), None::<&str>);
+                    NewWindowResponse::Deny
+                });
 
             // macOS: overlay titlebar keeps native traffic lights, hides title text
             #[cfg(target_os = "macos")]
