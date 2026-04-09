@@ -1,0 +1,6 @@
+{
+  "identifier": "oauth-capability",
+  "description": "Minimal permissions for the OAuth/OIDC authentication webview",
+  "windows": ["oauth"],
+  "permissions": []
+}

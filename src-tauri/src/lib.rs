@@ -21,6 +21,9 @@ struct WebviewRoomMap(Mutex<HashMap<String, String>>);
 /// Managed state storing the current theme kind ("light" or "dark").
 struct CurrentTheme(Mutex<String>);
 
+/// URL scheme used for the OAuth callback redirect URI.
+const OAUTH_CALLBACK_SCHEME: &str = "vip.elevo.messenger";
+
 // Allowed domains for in-app webview (supports subdomain matching).
 // Replace with actual trusted domains before shipping.
 const ALLOWED_DOMAINS: &[&str] = &[
@@ -389,6 +392,88 @@ async fn close_webview(
     Ok(())
 }
 
+/// Open a dedicated OAuth/OIDC authentication window (desktop only).
+/// The webview navigates to the OIDC provider's authorization URL. When the
+/// provider redirects back to the custom-protocol callback URI, the
+/// `on_navigation` handler intercepts it, extracts the authorization code (or
+/// error), emits an `"oauth-callback"` event to the main window, and closes
+/// the OAuth window.
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+#[tauri::command]
+async fn open_oauth_window(
+    app: tauri::AppHandle,
+    auth_url: String,
+) -> Result<(), String> {
+    // Close any existing OAuth window first.
+    if let Some(existing) = app.get_webview_window("oauth") {
+        let _ = existing.close();
+    }
+
+    let parsed: tauri::Url = auth_url
+        .parse()
+        .map_err(|e: url::ParseError| e.to_string())?;
+
+    let app_nav = app.clone();
+    let app_event = app.clone();
+
+    let window = WebviewWindowBuilder::new(&app, "oauth", WebviewUrl::External(parsed))
+        .title("Sign in")
+        .inner_size(600.0, 700.0)
+        .on_navigation(move |url| {
+            if url.scheme() != OAUTH_CALLBACK_SCHEME {
+                return true; // Allow normal navigation.
+            }
+
+            // Collect query parameters from the callback URL.
+            let params: HashMap<String, String> = url.query_pairs().into_owned().collect();
+
+            let payload = if let Some(error) = params.get("error") {
+                serde_json::json!({
+                    "error": error,
+                    "errorDescription": params.get("error_description").cloned().unwrap_or_default(),
+                })
+            } else if let (Some(code), Some(state)) = (params.get("code"), params.get("state")) {
+                serde_json::json!({
+                    "code": code,
+                    "state": state,
+                })
+            } else {
+                serde_json::json!({
+                    "error": "invalid_response",
+                    "errorDescription": "Missing code or state parameter in callback.",
+                })
+            };
+
+            // Emit the callback data to the main window.
+            if let Some(main) = app_nav.get_webview_window("main") {
+                let _ = main.emit("oauth-callback", payload);
+            }
+
+            // Close the OAuth window asynchronously to avoid deadlock.
+            let close_handle = app_nav.clone();
+            tauri::async_runtime::spawn(async move {
+                if let Some(win) = close_handle.get_webview_window("oauth") {
+                    let _ = win.close();
+                }
+            });
+
+            false // Block navigation to the custom-protocol URL.
+        })
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    // Notify main window when the OAuth window is closed (e.g. user closes it manually).
+    window.on_window_event(move |event| {
+        if let tauri::WindowEvent::Destroyed = event {
+            if let Some(main) = app_event.get_webview_window("main") {
+                let _ = main.emit("oauth-window-closed", serde_json::json!({}));
+            }
+        }
+    });
+
+    Ok(())
+}
+
 // ── App entry point ──────────────────────────────────────────────────────────
 
 pub fn run() {
@@ -426,6 +511,8 @@ pub fn run() {
             set_theme,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             close_webview,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            open_oauth_window,
         ])
         .setup(move |app| {
             // Initialize updater plugin (desktop only).
