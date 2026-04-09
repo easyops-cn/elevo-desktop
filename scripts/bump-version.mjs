@@ -74,14 +74,21 @@ cargoLock = cargoLock.replace(
 writeFileSync(cargoLockPath, cargoLock);
 console.log(`  Updated ${cargoLockPath}`);
 
-// 6. cinny/package.json (submodule)
+// 7. README.md download links
+const readmePath = resolve(root, 'README.md');
+let readme = readFileSync(readmePath, 'utf-8');
+readme = readme.replace(/(Elevo\.Messenger_)\d+\.\d+\.\d+(_)/g, `$1${newVersion}$2`);
+writeFileSync(readmePath, readme);
+console.log(`  Updated ${readmePath}`);
+
+// 8. cinny/package.json (submodule)
 const cinnyPkgPath = resolve(root, 'cinny/package.json');
 const cinnyPkg = readJSON(cinnyPkgPath);
 cinnyPkg.version = newVersion;
 writeJSON(cinnyPkgPath, cinnyPkg);
 console.log(`  Updated ${cinnyPkgPath}`);
 
-// 7. cinny/package-lock.json (submodule)
+// 9. cinny/package-lock.json (submodule)
 const cinnyLockPath = resolve(root, 'cinny/package-lock.json');
 const cinnyLock = readJSON(cinnyLockPath);
 cinnyLock.version = newVersion;
