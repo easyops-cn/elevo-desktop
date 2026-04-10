@@ -7,7 +7,8 @@ mod menu;
 mod updater;
 
 use std::collections::HashMap;
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 
 use tauri::{
     webview::{NewWindowResponse, WebviewWindowBuilder},
@@ -406,12 +407,16 @@ async fn close_webview(
 #[tauri::command]
 async fn open_oauth_window(
     app: tauri::AppHandle,
+    theme_state: State<'_, CurrentTheme>,
     auth_url: String,
 ) -> Result<(), String> {
     // Close any existing OAuth window first.
     if let Some(existing) = app.get_webview_window("oauth") {
         let _ = existing.close();
     }
+
+    let theme = theme_state.0.lock().map_err(|e| e.to_string())?.clone();
+    let script = sdk_initialization_script("oauth", "", &theme);
 
     let parsed: tauri::Url = auth_url
         .parse()
@@ -420,13 +425,23 @@ async fn open_oauth_window(
     let app_nav = app.clone();
     let app_event = app.clone();
 
+    // Track whether on_navigation successfully intercepted the callback.
+    // This prevents emitting "oauth-window-closed" after a successful redirect,
+    // which would cause a race condition with the token exchange.
+    let callback_intercepted = Arc::new(AtomicBool::new(false));
+    let intercepted_for_close = callback_intercepted.clone();
+
     let window = WebviewWindowBuilder::new(&app, "oauth", WebviewUrl::External(parsed))
         .title("Login")
         .inner_size(600.0, 700.0)
+        .initialization_script(&script)
         .on_navigation(move |url| {
             if url.scheme() != OAUTH_CALLBACK_SCHEME {
                 return true; // Allow normal navigation.
             }
+
+            // Mark that we successfully intercepted the callback.
+            intercepted_for_close.store(true, Ordering::SeqCst);
 
             // Collect query parameters from the callback URL.
             let params: HashMap<String, String> = url.query_pairs().into_owned().collect();
@@ -467,8 +482,12 @@ async fn open_oauth_window(
         .map_err(|e| e.to_string())?;
 
     // Notify main window when the OAuth window is closed (e.g. user closes it manually).
+    // Skip if the callback was already intercepted, to avoid a race with token exchange.
     window.on_window_event(move |event| {
         if let tauri::WindowEvent::Destroyed = event {
+            if callback_intercepted.load(Ordering::SeqCst) {
+                return;
+            }
             if let Some(main) = app_event.get_webview_window("main") {
                 let _ = main.emit("oauth-window-closed", serde_json::json!({}));
             }
