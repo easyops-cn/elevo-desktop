@@ -25,7 +25,8 @@ Now, to setup development locally run the following commands:
 * `npm ci`
 
 To build the app locally, run:
-* `npm run tauri build`
+* MacOS: `npm run tauri build -- --no-sign --bundles app`
+* Windows: `npm run tauri build -- --no-sign --bundles msi`
 
 To start local dev server, run:
 * `npm run tauri dev`
