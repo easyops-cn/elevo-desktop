@@ -409,6 +409,7 @@ async fn open_oauth_window(
     app: tauri::AppHandle,
     theme_state: State<'_, CurrentTheme>,
     auth_url: String,
+    title: Option<String>,
 ) -> Result<(), String> {
     // Close any existing OAuth window first.
     if let Some(existing) = app.get_webview_window("oauth") {
@@ -432,7 +433,7 @@ async fn open_oauth_window(
     let intercepted_for_close = callback_intercepted.clone();
 
     let window = WebviewWindowBuilder::new(&app, "oauth", WebviewUrl::External(parsed))
-        .title("Login")
+        .title(title.as_deref().unwrap_or("Login"))
         .inner_size(600.0, 700.0)
         .initialization_script(&script)
         .on_navigation(move |url| {
