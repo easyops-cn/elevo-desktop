@@ -1,0 +1,9 @@
+{
+  "identifier": "workspaces-capability",
+  "description": "Permissions for workspace explorer side panel webviews",
+  "windows": ["workspaces-*"],
+  "permissions": [
+    "core:default"
+  ],
+  "csp": "connect-src 'self' ipc: ipc://ipc.localhost"
+}

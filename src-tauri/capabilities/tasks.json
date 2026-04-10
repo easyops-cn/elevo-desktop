@@ -1,0 +1,9 @@
+{
+  "identifier": "tasks-capability",
+  "description": "Permissions for task management side panel webviews",
+  "windows": ["tasks-*"],
+  "permissions": [
+    "core:default"
+  ],
+  "csp": "connect-src 'self' ipc: ipc://ipc.localhost"
+}
