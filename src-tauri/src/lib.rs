@@ -421,7 +421,7 @@ async fn open_oauth_window(
     let app_event = app.clone();
 
     let window = WebviewWindowBuilder::new(&app, "oauth", WebviewUrl::External(parsed))
-        .title("Sign in")
+        .title("Login")
         .inner_size(600.0, 700.0)
         .on_navigation(move |url| {
             if url.scheme() != OAUTH_CALLBACK_SCHEME {
@@ -566,6 +566,15 @@ pub fn run() {
             let app_handle = app.handle().clone();
             let builder = WebviewWindowBuilder::new(app, "main".to_string(), window_url)
                 .title("Elevo Messenger")
+                .on_navigation(|url| {
+                    // Dev:  http://localhost:8080
+                    // Prod: tauri://localhost
+                    if cfg!(debug_assertions) {
+                        url.scheme() == "http" && url.host_str() == Some("localhost") && url.port() == Some(8080)
+                    } else {
+                        url.scheme() == "tauri"
+                    }
+                })
                 .on_new_window(move |url, _features| {
                     let _ = app_handle.opener().open_url(url.as_str(), None::<&str>);
                     NewWindowResponse::Deny
