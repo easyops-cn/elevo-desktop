@@ -48,6 +48,17 @@ fn is_domain_allowed(url: &str) -> bool {
     false
 }
 
+/// Derive a window title from a URL: show only the host for standard HTTPS,
+/// otherwise show the full origin (scheme://host:port).
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+fn title_from_url(url: &url::Url, fallback: &str) -> String {
+    if url.scheme() == "https" && url.port().is_none() {
+        url.host_str().unwrap_or(fallback).to_string()
+    } else {
+        url.origin().ascii_serialization()
+    }
+}
+
 /// JS injected into every page of a child webview before any page script runs.
 /// The script template lives in `scripts/webview-sdk.js` and is embedded at
 /// compile time via `include_str!`. The placeholders `__WEBVIEW_LABEL__` and
@@ -87,16 +98,23 @@ async fn open_webview(
     let theme = theme_state.0.lock().map_err(|e| e.to_string())?.clone();
     let parsed: tauri::Url = url.parse().map_err(|e: url::ParseError| e.to_string())?;
     let script = sdk_initialization_script(&label, &room_id, &theme);
-    let title = if parsed.scheme() == "https" && parsed.port().is_none() {
-        parsed.host_str().unwrap_or(&label).to_string()
-    } else {
-        parsed.origin().ascii_serialization()
-    };
+    let title = title_from_url(&parsed, &label);
+
+    let app_for_load = app.clone();
+    let label_for_load = label.clone();
 
     let window = WebviewWindowBuilder::new(&app, &label, WebviewUrl::External(parsed))
         .title(&title)
         .inner_size(1024.0, 768.0)
         .initialization_script(&script)
+        .on_page_load(move |_webview, payload| {
+            if matches!(payload.event(), tauri::webview::PageLoadEvent::Started) {
+                let new_title = title_from_url(payload.url(), &label_for_load);
+                if let Some(win) = app_for_load.get_webview_window(&label_for_load) {
+                    let _ = win.set_title(&new_title);
+                }
+            }
+        })
         .build()
         .map_err(|e| e.to_string())?;
 
@@ -230,11 +248,10 @@ async fn open_side_panel(
     let theme = theme_state.0.lock().map_err(|e| e.to_string())?.clone();
     let parsed: tauri::Url = url.parse().map_err(|e: url::ParseError| e.to_string())?;
     let script = sdk_initialization_script(&label, &room_id, &theme);
-    let title = if parsed.scheme() == "https" && parsed.port().is_none() {
-        parsed.host_str().unwrap_or(&label).to_string()
-    } else {
-        parsed.origin().ascii_serialization()
-    };
+    let title = title_from_url(&parsed, &label);
+
+    let app_for_load = app.clone();
+    let label_for_load = label.clone();
 
     // WebviewWindowBuilder takes logical pixels (physical / scale_factor).
     let window = WebviewWindowBuilder::new(&app, &label, WebviewUrl::External(parsed))
@@ -242,6 +259,14 @@ async fn open_side_panel(
         .inner_size(panel_w / scale_factor, panel_h / scale_factor)
         .position(panel_x / scale_factor, panel_y / scale_factor)
         .initialization_script(&script)
+        .on_page_load(move |_webview, payload| {
+            if matches!(payload.event(), tauri::webview::PageLoadEvent::Started) {
+                let new_title = title_from_url(payload.url(), &label_for_load);
+                if let Some(win) = app_for_load.get_webview_window(&label_for_load) {
+                    let _ = win.set_title(&new_title);
+                }
+            }
+        })
         .build()
         .map_err(|e| e.to_string())?;
 
@@ -431,15 +456,13 @@ async fn open_oauth_window(
         .parse()
         .map_err(|e: url::ParseError| e.to_string())?;
 
-    let title = if parsed.scheme() == "https" && parsed.port().is_none() {
-        parsed.host_str().unwrap_or("Login").to_string()
-    } else {
-        parsed.origin().ascii_serialization()
-    };
+    let title = title_from_url(&parsed, "Login");
 
     let app_nav = app.clone();
     let app_event = app.clone();
+    let app_for_load = app.clone();
     let label_for_nav = label.clone();
+    let label_for_load = label.clone();
 
     // Track whether on_navigation successfully intercepted the callback.
     // This prevents emitting "oauth-window-closed" after a successful redirect,
@@ -494,6 +517,14 @@ async fn open_oauth_window(
             });
 
             false // Block navigation to the custom-protocol URL.
+        })
+        .on_page_load(move |_webview, payload| {
+            if matches!(payload.event(), tauri::webview::PageLoadEvent::Started) {
+                let new_title = title_from_url(payload.url(), "Login");
+                if let Some(win) = app_for_load.get_webview_window(&label_for_load) {
+                    let _ = win.set_title(&new_title);
+                }
+            }
         })
         .build()
         .map_err(|e| e.to_string())?;
