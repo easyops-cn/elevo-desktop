@@ -401,8 +401,10 @@ async fn close_webview(
 /// The webview navigates to the OIDC provider's authorization URL. When the
 /// provider redirects back to the custom-protocol callback URI, the
 /// `on_navigation` handler intercepts it, extracts the authorization code (or
-/// error), emits an `"oauth-callback"` event to the main window, and closes
-/// the OAuth window.
+/// error), emits a callback event to the main window, and closes the OAuth
+/// window. The event name defaults to `"oauth-callback"` but can be overridden
+/// via the `callback_event` parameter so that different OAuth flows (e.g. OIDC
+/// login vs workspace linking) emit distinct events.
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 #[tauri::command]
 async fn open_oauth_window(
@@ -410,7 +412,12 @@ async fn open_oauth_window(
     theme_state: State<'_, CurrentTheme>,
     auth_url: String,
     title: Option<String>,
+    callback_event: Option<String>,
 ) -> Result<(), String> {
+    let callback_event = callback_event.unwrap_or_else(|| "oauth-callback".to_string());
+    let closed_event = format!("{callback_event}-window-closed");
+    let event_for_nav = callback_event.clone();
+    let event_for_close = closed_event.clone();
     // Close any existing OAuth window first.
     if let Some(existing) = app.get_webview_window("oauth") {
         let _ = existing.close();
@@ -466,7 +473,7 @@ async fn open_oauth_window(
 
             // Emit the callback data to the main window.
             if let Some(main) = app_nav.get_webview_window("main") {
-                let _ = main.emit("oauth-callback", payload);
+                let _ = main.emit(&event_for_nav, payload);
             }
 
             // Close the OAuth window asynchronously to avoid deadlock.
@@ -490,7 +497,7 @@ async fn open_oauth_window(
                 return;
             }
             if let Some(main) = app_event.get_webview_window("main") {
-                let _ = main.emit("oauth-window-closed", serde_json::json!({}));
+                let _ = main.emit(&event_for_close, serde_json::json!({}));
             }
         }
     });
