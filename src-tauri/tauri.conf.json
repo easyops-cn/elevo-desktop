@@ -47,7 +47,7 @@
   },
   "productName": "Elevo Messenger",
   "mainBinaryName": "Elevo Messenger",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "identifier": "vip.elevo.messenger",
   "plugins": {
     "updater": {
