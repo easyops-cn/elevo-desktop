@@ -402,29 +402,29 @@ async fn close_webview(
 /// provider redirects back to the custom-protocol callback URI, the
 /// `on_navigation` handler intercepts it, extracts the authorization code (or
 /// error), emits a callback event to the main window, and closes the OAuth
-/// window. The event name defaults to `"oauth-callback"` but can be overridden
-/// via the `callback_event` parameter so that different OAuth flows (e.g. OIDC
-/// login vs workspace linking) emit distinct events.
+/// window. The `label` parameter identifies the window and determines the event
+/// names: `{label}--callback` for the OAuth result and `{label}--window-closed`
+/// when the user manually closes the window.
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 #[tauri::command]
 async fn open_oauth_window(
     app: tauri::AppHandle,
     theme_state: State<'_, CurrentTheme>,
     auth_url: String,
+    label: String,
     title: Option<String>,
-    callback_event: Option<String>,
 ) -> Result<(), String> {
-    let callback_event = callback_event.unwrap_or_else(|| "oauth-callback".to_string());
-    let closed_event = format!("{callback_event}-window-closed");
+    let callback_event = format!("{label}--callback");
+    let closed_event = format!("{label}--window-closed");
     let event_for_nav = callback_event.clone();
     let event_for_close = closed_event.clone();
-    // Close any existing OAuth window first.
-    if let Some(existing) = app.get_webview_window("oauth") {
+    // Close any existing OAuth window with the same label first.
+    if let Some(existing) = app.get_webview_window(&label) {
         let _ = existing.close();
     }
 
     let theme = theme_state.0.lock().map_err(|e| e.to_string())?.clone();
-    let script = sdk_initialization_script("oauth", "", &theme);
+    let script = sdk_initialization_script(&label, "", &theme);
 
     let parsed: tauri::Url = auth_url
         .parse()
@@ -432,6 +432,7 @@ async fn open_oauth_window(
 
     let app_nav = app.clone();
     let app_event = app.clone();
+    let label_for_nav = label.clone();
 
     // Track whether on_navigation successfully intercepted the callback.
     // This prevents emitting "oauth-window-closed" after a successful redirect,
@@ -439,7 +440,7 @@ async fn open_oauth_window(
     let callback_intercepted = Arc::new(AtomicBool::new(false));
     let intercepted_for_close = callback_intercepted.clone();
 
-    let window = WebviewWindowBuilder::new(&app, "oauth", WebviewUrl::External(parsed))
+    let window = WebviewWindowBuilder::new(&app, &label, WebviewUrl::External(parsed))
         .title(title.as_deref().unwrap_or("Login"))
         .inner_size(600.0, 700.0)
         .initialization_script(&script)
@@ -478,8 +479,9 @@ async fn open_oauth_window(
 
             // Close the OAuth window asynchronously to avoid deadlock.
             let close_handle = app_nav.clone();
+            let label_for_close = label_for_nav.clone();
             tauri::async_runtime::spawn(async move {
-                if let Some(win) = close_handle.get_webview_window("oauth") {
+                if let Some(win) = close_handle.get_webview_window(&label_for_close) {
                     let _ = win.close();
                 }
             });
