@@ -87,10 +87,11 @@ async fn open_webview(
     let theme = theme_state.0.lock().map_err(|e| e.to_string())?.clone();
     let parsed: tauri::Url = url.parse().map_err(|e: url::ParseError| e.to_string())?;
     let script = sdk_initialization_script(&label, &room_id, &theme);
-    let title = parsed
-        .host_str()
-        .map(|h| format!("App View: {}", h))
-        .unwrap_or_else(|| label.clone());
+    let title = if parsed.scheme() == "https" && parsed.port().is_none() {
+        parsed.host_str().unwrap_or(&label).to_string()
+    } else {
+        parsed.origin().ascii_serialization()
+    };
 
     let window = WebviewWindowBuilder::new(&app, &label, WebviewUrl::External(parsed))
         .title(&title)
@@ -229,10 +230,11 @@ async fn open_side_panel(
     let theme = theme_state.0.lock().map_err(|e| e.to_string())?.clone();
     let parsed: tauri::Url = url.parse().map_err(|e: url::ParseError| e.to_string())?;
     let script = sdk_initialization_script(&label, &room_id, &theme);
-    let title = parsed
-        .host_str()
-        .map(|h| format!("App View: {}", h))
-        .unwrap_or_else(|| label.clone());
+    let title = if parsed.scheme() == "https" && parsed.port().is_none() {
+        parsed.host_str().unwrap_or(&label).to_string()
+    } else {
+        parsed.origin().ascii_serialization()
+    };
 
     // WebviewWindowBuilder takes logical pixels (physical / scale_factor).
     let window = WebviewWindowBuilder::new(&app, &label, WebviewUrl::External(parsed))
@@ -412,7 +414,6 @@ async fn open_oauth_window(
     theme_state: State<'_, CurrentTheme>,
     auth_url: String,
     label: String,
-    title: Option<String>,
 ) -> Result<(), String> {
     let callback_event = format!("{label}--callback");
     let closed_event = format!("{label}--window-closed");
@@ -430,6 +431,12 @@ async fn open_oauth_window(
         .parse()
         .map_err(|e: url::ParseError| e.to_string())?;
 
+    let title = if parsed.scheme() == "https" && parsed.port().is_none() {
+        parsed.host_str().unwrap_or("Login").to_string()
+    } else {
+        parsed.origin().ascii_serialization()
+    };
+
     let app_nav = app.clone();
     let app_event = app.clone();
     let label_for_nav = label.clone();
@@ -441,7 +448,7 @@ async fn open_oauth_window(
     let intercepted_for_close = callback_intercepted.clone();
 
     let window = WebviewWindowBuilder::new(&app, &label, WebviewUrl::External(parsed))
-        .title(title.as_deref().unwrap_or("Login"))
+        .title(&title)
         .inner_size(600.0, 700.0)
         .initialization_script(&script)
         .on_navigation(move |url| {
