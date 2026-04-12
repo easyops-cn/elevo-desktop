@@ -77,6 +77,7 @@ console.log(`  Updated ${cargoLockPath}`);
 // 7. README.md download links
 const readmePath = resolve(root, 'README.md');
 let readme = readFileSync(readmePath, 'utf-8');
+readme = readme.replace(/(elevo-messenger-v)\d+\.\d+\.\d+(\/)/g, `$1${newVersion}$2`);
 readme = readme.replace(/(Elevo\.Messenger_)\d+\.\d+\.\d+(_)/g, `$1${newVersion}$2`);
 writeFileSync(readmePath, readme);
 console.log(`  Updated ${readmePath}`);
