@@ -11,7 +11,6 @@ Operating System | Download
 Windows | <a href='https://github.com/easyops-cn/elevo-desktop/releases/download/elevo-messenger-v1.0.8/Elevo.Messenger_1.0.8_x64_en-US.msi'>Get it for Windows</a>
 macOS Apple Silicon | <a href='https://github.com/easyops-cn/elevo-desktop/releases/download/elevo-messenger-v1.0.8/Elevo.Messenger_1.0.8_aarch64.dmg'>Get it for macOS Apple Silicon</a>
 macOS Intel | <a href='https://github.com/easyops-cn/elevo-desktop/releases/download/elevo-messenger-v1.0.8/Elevo.Messenger_1.0.8_x64.dmg'>Get it for macOS Intel</a>
-Linux | <a href='https://github.com/easyops-cn/elevo-desktop/releases/download/elevo-messenger-v1.0.8/Elevo.Messenger_1.0.8_amd64.AppImage'>Get it for Linux</a>
 
 ## Local development
 

@@ -18,10 +18,6 @@ jobs:
             args: '--target aarch64-apple-darwin'
           - platform: 'macos-latest' # for Intel based macs.
             args: '--target x86_64-apple-darwin'
-          - platform: 'ubuntu-22.04'
-            args: ''
-          - platform: 'ubuntu-22.04-arm' # Only available in public repos.
-            args: ''
           - platform: 'windows-latest'
             args: ''
 
@@ -115,7 +111,6 @@ jobs:
             Windows | <a href='https://github.com/easyops-cn/elevo-desktop/releases/download/elevo-messenger-v__VERSION__/Elevo.Messenger___VERSION___x64_en-US.msi'>Get it for Windows</a>
             macOS Apple Silicon | <a href='https://github.com/easyops-cn/elevo-desktop/releases/download/elevo-messenger-v__VERSION__/Elevo.Messenger___VERSION___aarch64.dmg'>Get it for macOS Apple Silicon</a>
             macOS Intel | <a href='https://github.com/easyops-cn/elevo-desktop/releases/download/elevo-messenger-v__VERSION__/Elevo.Messenger___VERSION___x64.dmg'>Get it for macOS Intel</a>
-            Linux | <a href='https://github.com/easyops-cn/elevo-desktop/releases/download/elevo-messenger-v__VERSION__/Elevo.Messenger___VERSION___amd64.AppImage'>Get it for Linux</a>
           generateReleaseNotes: true
           releaseDraft: true
           prerelease: false
