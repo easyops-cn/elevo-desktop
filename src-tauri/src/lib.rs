@@ -637,11 +637,12 @@ pub fn run() {
                 .title("Elevo Messenger")
                 .on_navigation(|url| {
                     // Dev:  http://localhost:8080
-                    // Prod: tauri://localhost
+                    // Prod: tauri://localhost (macOS/Linux), http://tauri.localhost (Windows)
                     if cfg!(debug_assertions) {
                         url.scheme() == "http" && url.host_str() == Some("localhost") && url.port() == Some(8080)
                     } else {
                         url.scheme() == "tauri"
+                            || (url.scheme() == "http" && url.host_str() == Some("tauri.localhost"))
                     }
                 })
                 .on_new_window(move |url, _features| {
