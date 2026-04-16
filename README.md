@@ -4,7 +4,7 @@ Elevo Messenger is a matrix client focusing primarily on simple, elegant and sec
 
 ## Download
 
-Installers for macOS, Windows and Linux can be downloaded from [Github releases](https://github.com/easyops-cn/elevo-desktop/releases).
+Installers for macOS and Windows can be downloaded from [Github releases](https://github.com/easyops-cn/elevo-desktop/releases).
 
 Operating System | Download
 ---|---

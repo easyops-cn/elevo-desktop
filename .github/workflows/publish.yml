@@ -106,6 +106,9 @@ jobs:
           tagName: elevo-messenger-v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
           releaseName: 'Elevo Messenger v__VERSION__'
           releaseBody: |
+            ## New Features
+
+            ## Downloads
             Operating System | Download
             ---|---
             Windows | <a href='https://github.com/easyops-cn/elevo-desktop/releases/download/elevo-messenger-v__VERSION__/Elevo.Messenger___VERSION___x64_en-US.msi'>Get it for Windows</a>
