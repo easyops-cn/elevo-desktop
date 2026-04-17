@@ -13,6 +13,7 @@
     "global-shortcut:default",
     "process:default",
     "deep-link:default",
-    "store:default"
+    "store:default",
+    "notification:default"
   ]
 }
