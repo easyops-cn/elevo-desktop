@@ -623,8 +623,23 @@ pub fn run() {
 
                 let handle = app.handle().clone();
                 app.on_menu_event(move |_app, event| {
-                    if event.id().as_ref() == menu::CHECK_FOR_UPDATES_ID {
-                        updater::check_for_update(&handle);
+                    match event.id().as_ref() {
+                        menu::CHECK_FOR_UPDATES_ID => {
+                            updater::check_for_update(&handle);
+                        }
+                        menu::TOGGLE_DEVTOOLS_ID => {
+                            for (_, webview_window) in handle.webview_windows() {
+                                if webview_window.is_focused().unwrap_or(false) {
+                                    if webview_window.is_devtools_open() {
+                                        webview_window.close_devtools();
+                                    } else {
+                                        webview_window.open_devtools();
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                        _ => {}
                     }
                 });
             }
