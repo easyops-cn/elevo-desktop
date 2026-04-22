@@ -26,6 +26,12 @@ const ICONS = [
   'sticker',
   'send-horizontal',
   'upload',
+  'user-key',
+  'user-plus',
+  'user-minus',
+  'user-check',
+  'user-x',
+  'user-pen',
 ];
 
 function kebabToPascal(str) {
