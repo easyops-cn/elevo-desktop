@@ -32,6 +32,8 @@ const ICONS = [
   'user-check',
   'user-x',
   'user-pen',
+  'paperclip',
+  'case-sensitive',
 ];
 
 function kebabToPascal(str) {
