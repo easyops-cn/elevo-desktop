@@ -1,12 +1,14 @@
 {
   "defaultHomeserver": 0,
-  "homeserverList": ["m.easyops.local"],
+  "homeserverList": ["m.elevo.vip", "m.easyops.local"],
   "allowCustomHomeservers": true,
 
   "featuredCommunities": {
     "openAsDefault": false,
     "spaces": [],
-    "rooms": [],
+    "rooms": [
+      "#contacts:m.elevo.vip"
+    ],
     "servers": []
   },
 

@@ -22,7 +22,8 @@ const ICONS = [
   'layout-grid',
   'check-check',
   'reply',
-  'message-circle-reply',
+  'message-square-plus',
+  'message-square-text',
   'pencil',
   'link',
   'trash-2',
@@ -44,6 +45,7 @@ const ICONS = [
   'lock',
   'globe',
   'shield',
+  'code',
 ];
 
 function kebabToPascal(str) {

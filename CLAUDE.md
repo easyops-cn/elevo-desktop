@@ -44,6 +44,11 @@ make clean         # 清理构建产物
 - clipboard-manager, notification, fs, shell, http, process, os, dialog
 - global-shortcut, updater（仅桌面平台）
 
+### 国际化
+
+- 前端使用 i18next，语言文件位于 `cinny/public/locales/`
+- 当前仅支持 en 和 zh 两种语言
+
 ## Linux 构建依赖
 
 ```bash
