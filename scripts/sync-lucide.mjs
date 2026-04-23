@@ -1,6 +1,13 @@
-import { existsSync, writeFileSync } from 'fs';
-import { resolve, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { existsSync, writeFileSync } from 'node:fs';
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { ProxyAgent, setGlobalDispatcher } from 'undici';
+
+const proxyUrl = process.env.HTTPS_PROXY || process.env.https_proxy || process.env.HTTP_PROXY || process.env.http_proxy;
+if (proxyUrl) {
+  setGlobalDispatcher(new ProxyAgent(proxyUrl));
+  console.log(`Using proxy: ${proxyUrl}\n`);
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const iconsDir = resolve(__dirname, '..', 'cinny', 'src', 'app', 'icons');
@@ -34,6 +41,9 @@ const ICONS = [
   'user-pen',
   'paperclip',
   'case-sensitive',
+  'lock',
+  'globe',
+  'shield',
 ];
 
 function kebabToPascal(str) {
