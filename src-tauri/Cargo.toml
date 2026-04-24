@@ -2,7 +2,7 @@
 
 [package]
 name = "elevo-messenger"
-version = "1.0.16"
+version = "1.0.17"
 description = "Elevo Messenger - Matrix client desktop application"
 authors = ["Elevo Team"]
 license = "AGPL-3.0-only"
