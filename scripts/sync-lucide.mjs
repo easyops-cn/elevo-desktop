@@ -46,6 +46,13 @@ const ICONS = [
   'globe',
   'shield',
   'code',
+  'file',
+  'file-image',
+  'file-text',
+  'file-play',
+  'file-question-mark',
+  'film',
+  'audio-lines',
 ];
 
 function kebabToPascal(str) {
