@@ -53,6 +53,8 @@ const ICONS = [
   'file-question-mark',
   'film',
   'audio-lines',
+  'mail',
+  'settings',
 ];
 
 function kebabToPascal(str) {
