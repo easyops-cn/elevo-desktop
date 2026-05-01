@@ -651,6 +651,7 @@ pub fn run() {
             let app_handle = app.handle().clone();
             let builder = WebviewWindowBuilder::new(app, "main".to_string(), window_url)
                 .title("Elevo Messenger")
+                .disable_drag_drop_handler()
                 .on_navigation(|url| {
                     // Dev:  http://localhost:8080
                     // Prod: tauri://localhost (macOS/Linux), http://tauri.localhost (Windows)
