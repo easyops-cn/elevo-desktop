@@ -26,6 +26,10 @@ struct WebviewRoomMap(Mutex<HashMap<String, String>>);
 /// Managed state storing the current theme kind ("light" or "dark").
 struct CurrentTheme(Mutex<String>);
 
+/// Managed state holding the tray icon handle for dynamic updates.
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+struct TrayState(Mutex<Option<tauri::tray::TrayIcon>>);
+
 /// URL scheme used for the OAuth callback redirect URI.
 const OAUTH_CALLBACK_SCHEME: &str = "vip.elevo.messenger";
 
@@ -424,6 +428,209 @@ async fn close_webview(
     Ok(())
 }
 
+/// Update the tray icon to show the unread message count next to the app icon.
+/// When count is 0, restores the original tray icon (no number shown).
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+#[tauri::command]
+async fn update_tray_badge(
+    #[allow(unused_variables)] app: tauri::AppHandle,
+    state: State<'_, TrayState>,
+    count: u32,
+) -> Result<(), String> {
+    use image::{Rgba, RgbaImage};
+
+    let tray = {
+        let guard = state.0.lock().map_err(|e| e.to_string())?;
+        guard
+            .as_ref()
+            .ok_or_else(|| "Tray icon not initialized".to_string())?
+            .clone()
+    };
+
+    // Restore original icon when there are no unread messages.
+    if count == 0 {
+        #[cfg(target_os = "macos")]
+        {
+            let icon = tauri::image::Image::from_bytes(include_bytes!("../icons/tray_icon.png"))
+                .map_err(|e| e.to_string())?;
+            tray.set_icon(Some(icon)).map_err(|e| e.to_string())?;
+            tray.set_icon_as_template(true)
+                .map_err(|e| e.to_string())?;
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            let icon = app.default_window_icon().unwrap().clone();
+            tray.set_icon(Some(icon)).map_err(|e| e.to_string())?;
+        }
+        tray.set_tooltip(Some("Elevo Messenger"))
+            .map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+
+    // ── Load system font for anti-aliased text rendering ─────────────────────
+
+    fn load_system_font() -> Result<Vec<u8>, String> {
+        #[cfg(target_os = "macos")]
+        let paths: &[&str] = &[
+            "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+            "/System/Library/Fonts/Supplemental/Arial.ttf",
+            "/System/Library/Fonts/SFNSText.ttf",
+        ];
+
+        #[cfg(target_os = "windows")]
+        let paths: &[&str] = &[
+            r"C:\Windows\Fonts\arialbd.ttf",
+            r"C:\Windows\Fonts\arial.ttf",
+            r"C:\Windows\Fonts\segoeui.ttf",
+        ];
+
+        #[cfg(target_os = "linux")]
+        let paths: &[&str] = &[
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+            "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+        ];
+
+        for path in paths {
+            if let Ok(bytes) = std::fs::read(path) {
+                return Ok(bytes);
+            }
+        }
+        Err("No suitable system font found".to_string())
+    }
+
+    let font_bytes = load_system_font()?;
+    let font = fontdue::Font::from_bytes(font_bytes, fontdue::FontSettings::default())
+        .map_err(|e| format!("Failed to parse font: {e}"))?;
+
+    // ── Load base icon first so we can match its height ─────────────────────
+
+    #[cfg(target_os = "macos")]
+    let base_bytes: &[u8] = include_bytes!("../icons/tray_icon.png");
+    #[cfg(not(target_os = "macos"))]
+    let base_bytes: &[u8] = include_bytes!("../icons/icon.png");
+
+    let base_img = image::load_from_memory(base_bytes)
+        .map_err(|e| format!("Failed to load base icon: {e}"))?
+        .to_rgba8();
+
+    let base_w = base_img.width();
+    let base_h = base_img.height();
+
+    // ── Render badge text (anti-aliased) ────────────────────────────────────
+
+    let text = if count > 99 {
+        "99+".to_string()
+    } else {
+        count.to_string()
+    };
+
+    let font_size: f32 = 50.0;
+
+    // Rasterize each character individually and collect metrics.
+    let chars: Vec<char> = text.chars().collect();
+    let n = chars.len();
+    let mut char_results: Vec<(fontdue::Metrics, Vec<u8>)> = Vec::with_capacity(n);
+    let mut total_advance: usize = 0;
+    let mut glyph_top: f32 = 0.0;
+    let mut glyph_bottom: f32 = 0.0;
+
+    for &ch in &chars {
+        let (metrics, bitmap) = font.rasterize(ch, font_size);
+        let ymin = metrics.ymin as f32;
+        let bottom = metrics.ymin as f32 + metrics.height as f32;
+        if ymin < glyph_top {
+            glyph_top = ymin;
+        }
+        if bottom > glyph_bottom {
+            glyph_bottom = bottom;
+        }
+        total_advance += metrics.advance_width.ceil() as usize;
+        char_results.push((metrics, bitmap));
+    }
+
+    let char_gap: usize = 1;
+    let pad: usize = 2;
+    let inner_w = total_advance + if n > 1 { (n - 1) * char_gap } else { 0 };
+    let img_w: u32 = (inner_w + 2 * pad) as u32;
+
+    #[cfg(target_os = "macos")]
+    let color = Rgba([255, 255, 255, 255]);
+    #[cfg(not(target_os = "macos"))]
+    let color = Rgba([231, 29, 54, 255]);
+
+    // Create badge image with same height as base icon for perfect vertical alignment.
+    let mut badge_img = RgbaImage::new(img_w, base_h);
+
+    // Align text baseline at ~76% of icon height.
+    // Digits have no descenders — their bounding box center is below visual center.
+    // Baseline alignment produces a perceptually correct vertical position.
+    let baseline_y = base_h as f32 * 0.76;
+    let y_base: f32 = glyph_top.abs() + baseline_y - glyph_bottom;
+    let mut x_off: usize = pad;
+
+    for (metrics, bitmap) in &char_results {
+        let glyph_w = metrics.width;
+        let glyph_h = metrics.height;
+        let gx = x_off + metrics.xmin.max(0) as usize;
+        let gy = (y_base + (metrics.ymin as f32).max(0.0)).ceil() as usize;
+        for py in 0..glyph_h {
+            for px in 0..glyph_w {
+                let idx = py * glyph_w + px;
+                if idx < bitmap.len() {
+                    let alpha = bitmap[idx];
+                    if alpha > 0 {
+                        let ix = gx + px;
+                        let iy = gy + py;
+                        if ix < img_w as usize && iy < base_h as usize {
+                            badge_img.put_pixel(ix as u32, iy as u32, Rgba([color[0], color[1], color[2], alpha]));
+                        }
+                    }
+                }
+            }
+        }
+        x_off += metrics.advance_width.ceil() as usize + char_gap;
+    }
+
+    // ── Compose base icon + badge number ────────────────────────────────────
+
+    let badge_w = badge_img.width();
+
+    let gap: u32 = 12;
+    let total_w = base_w + gap + badge_w;
+
+    let mut composite = RgbaImage::new(total_w, base_h);
+
+    // Both images are same height — no vertical offset needed.
+    image::imageops::overlay(&mut composite, &base_img, 0, 0);
+
+    // Badge number on the right.
+    let badge_x = base_w + gap;
+    image::imageops::overlay(&mut composite, &badge_img, badge_x as i64, 0);
+
+    // Encode to PNG and set as tray icon.
+    let mut png_buf = std::io::Cursor::new(Vec::new());
+    composite
+        .write_to(&mut png_buf, image::ImageFormat::Png)
+        .map_err(|e| format!("Failed to encode PNG: {e}"))?;
+    let png_bytes = png_buf.into_inner();
+
+    let icon = tauri::image::Image::from_bytes(&png_bytes)
+        .map_err(|e| e.to_string())?;
+    tray.set_icon(Some(icon)).map_err(|e| e.to_string())?;
+
+    // macOS: keep template mode so system adapts to light/dark menu bar.
+    #[cfg(target_os = "macos")]
+    tray.set_icon_as_template(true)
+        .map_err(|e| e.to_string())?;
+
+    let tooltip = format!("Elevo Messenger ({})", count);
+    tray.set_tooltip(Some(tooltip)).map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
 /// Open a dedicated OAuth/OIDC authentication window (desktop only).
 /// The webview navigates to the OIDC provider's authorization URL. When the
 /// provider redirects back to the custom-protocol callback URI, the
@@ -586,6 +793,8 @@ pub fn run() {
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             close_webview,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            update_tray_badge,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             open_oauth_window,
         ])
         .setup(move |app| {
@@ -684,6 +893,8 @@ pub fn run() {
             // the tray icon lets the user bring it back.
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             {
+                app.manage(TrayState(Mutex::new(None)));
+
                 let win_clone = window.clone();
                 window.on_window_event(move |event| {
                     if let tauri::WindowEvent::CloseRequested { api, .. } = event {
@@ -727,7 +938,7 @@ pub fn run() {
                     tray_builder = tray_builder.icon_as_template(true);
                 }
 
-                tray_builder
+                let tray_icon = tray_builder
                     .on_tray_icon_event(move |_tray, event| {
                         if let tauri::tray::TrayIconEvent::Click {
                             button: tauri::tray::MouseButton::Left,
@@ -756,6 +967,9 @@ pub fn run() {
                         }
                     })
                     .build(app)?;
+
+                // Store tray icon handle so update_tray_badge can access it.
+                *app.state::<TrayState>().0.lock().unwrap() = Some(tray_icon);
             }
 
             #[cfg(any(target_os = "android", target_os = "ios"))]
