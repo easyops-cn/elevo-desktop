@@ -796,6 +796,8 @@ pub fn run() {
             update_tray_badge,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             open_oauth_window,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            menu::update_menu_state,
         ])
         .setup(move |app| {
             // Initialize updater plugin (desktop only).
