@@ -14,6 +14,7 @@ const iconsDir = resolve(__dirname, '..', 'cinny', 'src', 'app', 'icons');
 
 const ICONS = [
   'panel-left',
+  'panel-right',
   'user',
   'search',
   'ellipsis-vertical',
@@ -55,6 +56,7 @@ const ICONS = [
   'audio-lines',
   'mail',
   'settings',
+  'shield-user',
 ];
 
 function kebabToPascal(str) {
