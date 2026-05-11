@@ -901,6 +901,16 @@ pub fn run() {
                 window.on_window_event(move |event| {
                     if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                         api.prevent_close();
+
+                        #[cfg(target_os = "macos")]
+                        {
+                            if win_clone.is_fullscreen().unwrap_or(false) {
+                                let _ = win_clone.set_fullscreen(false);
+                                // Avoid leaving a black fullscreen space on macOS.
+                                std::thread::sleep(std::time::Duration::from_millis(300));
+                            }
+                        }
+
                         let _ = win_clone.hide();
                     }
                 });
