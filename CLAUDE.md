@@ -18,6 +18,10 @@ make build-macos   # 构建 macOS universal 版本
 make clean         # 清理构建产物
 ```
 
+## GitHub 操作
+
+使用 GitHub CLI 工具 `gh` 执行 GitHub 相关操作，包括查看 issue/PR、创建 PR、检查 CI 状态和读取评论等。
+
 ## 架构
 
 ### 目录结构
