@@ -57,8 +57,10 @@ sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev 
 
 ## 版本管理
 
-版本号需在三个位置同步更新：
+使用 `npm run bump` 递进 fix 版本，该命令会同步更新相关版本文件。
 
-- `package.json`
-- `src-tauri/Cargo.toml`
-- `src-tauri/tauri.conf.json`
+也可手动指定版本号：
+
+```bash
+npm run bump 1.2.3
+```
