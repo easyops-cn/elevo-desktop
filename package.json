@@ -8,7 +8,8 @@
   },
   "scripts": {
     "tauri": "node scripts/copy-config.mjs && tauri",
-    "bump": "node scripts/bump-version.mjs"
+    "bump": "node scripts/bump-version.mjs",
+    "release": "node scripts/release.mjs"
   },
   "keywords": [],
   "author": "Elevo Team",
