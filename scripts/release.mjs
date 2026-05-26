@@ -93,10 +93,17 @@ function requireMain(name, cwd) {
 }
 
 function rootPorcelain() {
-  return capture('git', ['status', '--porcelain'], root)
-    .split('\n')
-    .map((line) => line.trimEnd())
-    .filter(Boolean);
+  return capture('git', ['status', '--porcelain=v1', '-z'], root)
+    .split('\0')
+    .filter(Boolean)
+    .map((entry) => {
+      const path = entry.slice(3);
+      return { entry, path };
+    });
+}
+
+function formatPorcelain(entries) {
+  return entries.map(({ entry }) => entry).join('\n');
 }
 
 function submodulePorcelain() {
@@ -113,9 +120,9 @@ function requireCleanBeforeBump() {
   }
 
   const rootStatus = rootPorcelain();
-  const nonCinny = rootStatus.filter((line) => line.slice(3) !== 'cinny');
+  const nonCinny = rootStatus.filter(({ path }) => path !== 'cinny');
   if (nonCinny.length > 0) {
-    fail(`root has uncommitted changes outside the cinny submodule pointer:\n${nonCinny.join('\n')}`);
+    fail(`root has uncommitted changes outside the cinny submodule pointer:\n${formatPorcelain(nonCinny)}`);
   }
 }
 
