@@ -63,6 +63,18 @@ fn title_from_url(url: &url::Url, fallback: &str) -> String {
     }
 }
 
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+fn is_app_window_url(url: &tauri::Url) -> bool {
+    if cfg!(debug_assertions) {
+        return url.scheme() == "http"
+            && url.host_str() == Some("localhost")
+            && url.port() == Some(8080);
+    }
+
+    url.scheme() == "tauri"
+        || (url.scheme() == "http" && url.host_str() == Some("tauri.localhost"))
+}
+
 /// JS injected into every page of a child webview before any page script runs.
 /// The script template lives in `scripts/webview-sdk.js` and is embedded at
 /// compile time via `include_str!`. The placeholders `__WEBVIEW_LABEL__` and
@@ -150,6 +162,45 @@ async fn open_webview(
             }
         }
     });
+
+    Ok(())
+}
+
+/// Open an app route in a native secondary window (desktop only).
+/// Reuses and focuses an existing window with the same label.
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+#[tauri::command]
+async fn open_app_window(
+    app: tauri::AppHandle,
+    path: String,
+    label: String,
+    title: String,
+    width: f64,
+    height: f64,
+    min_width: Option<f64>,
+    min_height: Option<f64>,
+) -> Result<(), String> {
+    if let Some(existing) = app.get_webview_window(&label) {
+        existing.set_focus().map_err(|e: tauri::Error| e.to_string())?;
+        return Ok(());
+    }
+
+    let parsed: tauri::Url = path.parse().map_err(|e: url::ParseError| e.to_string())?;
+    if !is_app_window_url(&parsed) {
+        return Err(format!("URL is not an app window route: {}", path));
+    }
+
+    let mut builder = WebviewWindowBuilder::new(&app, &label, WebviewUrl::External(parsed))
+        .title(&title)
+        .inner_size(width, height)
+        .disable_drag_drop_handler();
+
+    if let (Some(min_width), Some(min_height)) = (min_width, min_height) {
+        builder = builder.min_inner_size(min_width, min_height);
+    }
+
+    let window = builder.build().map_err(|e| e.to_string())?;
+    window.set_focus().map_err(|e| e.to_string())?;
 
     Ok(())
 }
@@ -781,6 +832,8 @@ pub fn run() {
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             open_webview,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            open_app_window,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             open_side_panel,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             relay_sdk_message,
@@ -866,12 +919,7 @@ pub fn run() {
                 .on_navigation(|url| {
                     // Dev:  http://localhost:8080
                     // Prod: tauri://localhost (macOS/Linux), http://tauri.localhost (Windows)
-                    if cfg!(debug_assertions) {
-                        url.scheme() == "http" && url.host_str() == Some("localhost") && url.port() == Some(8080)
-                    } else {
-                        url.scheme() == "tauri"
-                            || (url.scheme() == "http" && url.host_str() == Some("tauri.localhost"))
-                    }
+                    is_app_window_url(url)
                 })
                 .on_new_window(move |url, _features| {
                     let _ = app_handle.opener().open_url(url.as_str(), None::<&str>);
