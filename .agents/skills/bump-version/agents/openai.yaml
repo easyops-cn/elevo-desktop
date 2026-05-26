@@ -1,0 +1,4 @@
+interface:
+  display_name: "Bump Version"
+  short_description: "Run the Cinny desktop release bump workflow"
+  default_prompt: "Use $bump-version to bump and publish the project release version."
