@@ -4,7 +4,6 @@
   "local": true,
   "windows": [
     "main",
-    "settings",
     "image-viewer-*"
   ],
   "permissions": [

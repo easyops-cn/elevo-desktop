@@ -7,7 +7,6 @@
   ],
   "windows": [
     "main",
-    "settings",
     "image-viewer-*"
   ],
   "permissions": [
