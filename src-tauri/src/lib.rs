@@ -7,6 +7,7 @@ mod menu;
 mod updater;
 
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
@@ -74,6 +75,18 @@ fn sdk_initialization_script(label: &str, room_id: &str, theme: &str) -> String 
         .replace("__WEBVIEW_LABEL__", &serde_json::to_string(label).unwrap())
         .replace("__ROOM_ID__", &serde_json::to_string(room_id).unwrap())
         .replace("__THEME__", &serde_json::to_string(theme).unwrap())
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+fn preview_initialization_script(theme: &str, payload: &serde_json::Value) -> String {
+    format!(
+        r#"(function () {{
+  window.__ElevoPreview_initialTheme__ = {};
+  window.__ElevoPreview_initialPayload__ = {};
+}})();"#,
+        serde_json::to_string(theme).unwrap(),
+        serde_json::to_string(payload).unwrap()
+    )
 }
 
 // ── Desktop-only commands ────────────────────────────────────────────────────
@@ -150,6 +163,45 @@ async fn open_webview(
             }
         }
     });
+
+    Ok(())
+}
+
+/// Open or update the singleton media preview window (desktop only).
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+#[tauri::command]
+async fn open_preview_window(
+    app: tauri::AppHandle,
+    theme_state: State<'_, CurrentTheme>,
+    payload: serde_json::Value,
+) -> Result<(), String> {
+    const LABEL: &str = "media-preview";
+
+    if let Some(existing) = app.get_webview_window(LABEL) {
+        let js = format!(
+            "window.__ElevoPreview_receive__ && window.__ElevoPreview_receive__({})",
+            serde_json::to_string(&payload).map_err(|e| e.to_string())?,
+        );
+        existing.eval(&js).map_err(|e| e.to_string())?;
+        existing.show().map_err(|e| e.to_string())?;
+        existing.set_focus().map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+
+    let theme = theme_state.0.lock().map_err(|e| e.to_string())?.clone();
+    let script = preview_initialization_script(&theme, &payload);
+
+    WebviewWindowBuilder::new(
+        &app,
+        LABEL,
+        WebviewUrl::App(PathBuf::from("preview.html")),
+    )
+    .title("Media Preview")
+    .inner_size(960.0, 720.0)
+    .min_inner_size(420.0, 320.0)
+    .initialization_script(&script)
+    .build()
+    .map_err(|e| e.to_string())?;
 
     Ok(())
 }
@@ -782,6 +834,8 @@ pub fn run() {
             open_webview,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             open_side_panel,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            open_preview_window,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             relay_sdk_message,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]

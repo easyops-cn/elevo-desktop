@@ -1,0 +1,17 @@
+{
+  "identifier": "media-preview-capability",
+  "description": "Permissions for the singleton media preview window",
+  "local": true,
+  "windows": [
+    "media-preview"
+  ],
+  "permissions": [
+    "core:default",
+    "core:window:allow-close",
+    "dialog:allow-save",
+    "fs:allow-write-file",
+    "store:allow-load",
+    "store:allow-get",
+    "os:allow-locale"
+  ]
+}
