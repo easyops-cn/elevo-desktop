@@ -26,6 +26,9 @@ struct WebviewRoomMap(Mutex<HashMap<String, String>>);
 /// Managed state storing the current theme kind ("light" or "dark").
 struct CurrentTheme(Mutex<String>);
 
+/// Managed state storing the latest media preview payload for the single preview window.
+struct MediaPreviewState(Mutex<Option<serde_json::Value>>);
+
 /// Managed state holding the tray icon handle for dynamic updates.
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 struct TrayState(Mutex<Option<tauri::tray::TrayIcon>>);
@@ -74,6 +77,15 @@ fn sdk_initialization_script(label: &str, room_id: &str, theme: &str) -> String 
         .replace("__WEBVIEW_LABEL__", &serde_json::to_string(label).unwrap())
         .replace("__ROOM_ID__", &serde_json::to_string(room_id).unwrap())
         .replace("__THEME__", &serde_json::to_string(theme).unwrap())
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+fn media_preview_initialization_script(theme: &str, payload: &serde_json::Value) -> String {
+    format!(
+        "window.__ElevoMediaPreview_initialTheme__ = {}; window.__ElevoMediaPreview_initialPayload__ = {};",
+        serde_json::to_string(theme).unwrap(),
+        serde_json::to_string(payload).unwrap()
+    )
 }
 
 // ── Desktop-only commands ────────────────────────────────────────────────────
@@ -315,6 +327,51 @@ async fn open_side_panel(
     Ok(())
 }
 
+/// Open or update the lightweight media preview window (desktop only).
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+#[tauri::command]
+async fn open_media_preview(
+    app: tauri::AppHandle,
+    theme_state: State<'_, CurrentTheme>,
+    preview_state: State<'_, MediaPreviewState>,
+    payload: serde_json::Value,
+) -> Result<(), String> {
+    const LABEL: &str = "media-preview";
+
+    *preview_state.0.lock().map_err(|e| e.to_string())? = Some(payload.clone());
+
+    if let Some(existing) = app.get_webview_window(LABEL) {
+        let js = format!(
+            "window.__ElevoMediaPreview_receive__ && window.__ElevoMediaPreview_receive__({})",
+            serde_json::to_string(&payload).unwrap(),
+        );
+        existing.eval(&js).map_err(|e| e.to_string())?;
+        existing.set_focus().map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+
+    let theme = theme_state.0.lock().map_err(|e| e.to_string())?.clone();
+    let script = media_preview_initialization_script(&theme, &payload);
+    let window = WebviewWindowBuilder::new(&app, LABEL, WebviewUrl::App("preview.html".into()))
+        .title("Preview")
+        .inner_size(960.0, 720.0)
+        .initialization_script(&script)
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let app_for_close = app.clone();
+    window.on_window_event(move |event| {
+        if let tauri::WindowEvent::Destroyed = event {
+            let preview_state = app_for_close.state::<MediaPreviewState>();
+            if let Ok(mut state) = preview_state.0.lock() {
+                *state = None;
+            }
+        }
+    });
+
+    Ok(())
+}
+
 /// Relay a message from a child webview to the main window via a Tauri event.
 /// Event name: "elevo-messenger-sdk-message"
 /// Payload: { source: String, roomId: String, channel: String, data: Value }
@@ -400,14 +457,19 @@ async fn set_theme(
     }
     *theme_state.0.lock().map_err(|e| e.to_string())? = theme_kind.clone();
 
-    let js = format!(
+    let sdk_js = format!(
         "window.__ElevoMessengerSDK_receive__ && window.__ElevoMessengerSDK_receive__({}, {})",
         serde_json::to_string("theme_change").unwrap(),
         serde_json::to_string(&theme_kind).unwrap(),
     );
+    let preview_js = format!(
+        "window.__ElevoMediaPreview_theme__ && window.__ElevoMediaPreview_theme__({})",
+        serde_json::to_string(&theme_kind).unwrap(),
+    );
     for (_, window) in app.webview_windows() {
         if window.label() != "main" {
-            let _ = window.eval(&js);
+            let _ = window.eval(&sdk_js);
+            let _ = window.eval(&preview_js);
         }
     }
     Ok(())
@@ -777,11 +839,14 @@ pub fn run() {
         .plugin(tauri_plugin_deep_link::init())
         .manage(WebviewRoomMap(Mutex::new(HashMap::new())))
         .manage(CurrentTheme(Mutex::new("light".to_string())))
+        .manage(MediaPreviewState(Mutex::new(None)))
         .invoke_handler(tauri::generate_handler![
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             open_webview,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             open_side_panel,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            open_media_preview,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             relay_sdk_message,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
