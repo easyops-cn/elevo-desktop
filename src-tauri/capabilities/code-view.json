@@ -1,0 +1,15 @@
+{
+  "identifier": "code-view-capability",
+  "description": "Permissions for the singleton code view window",
+  "local": true,
+  "windows": [
+    "code-view"
+  ],
+  "permissions": [
+    "core:default",
+    "core:window:allow-close",
+    "store:allow-load",
+    "store:allow-get",
+    "os:allow-locale"
+  ]
+}

@@ -89,6 +89,18 @@ fn preview_initialization_script(theme: &str, payload: &serde_json::Value) -> St
     )
 }
 
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+fn code_view_initialization_script(theme: &str, payload: &serde_json::Value) -> String {
+    format!(
+        r#"(function () {{
+  window.__ElevoCodeView_initialTheme__ = {};
+  window.__ElevoCodeView_initialPayload__ = {};
+}})();"#,
+        serde_json::to_string(theme).unwrap(),
+        serde_json::to_string(payload).unwrap()
+    )
+}
+
 // ── Desktop-only commands ────────────────────────────────────────────────────
 
 /// Open a URL in a new in-app WebviewWindow (desktop only).
@@ -199,6 +211,45 @@ async fn open_preview_window(
     .title("Media Preview")
     .inner_size(960.0, 720.0)
     .min_inner_size(420.0, 320.0)
+    .initialization_script(&script)
+    .build()
+    .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+/// Open or update the singleton code view window (desktop only).
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+#[tauri::command]
+async fn open_code_view_window(
+    app: tauri::AppHandle,
+    theme_state: State<'_, CurrentTheme>,
+    payload: serde_json::Value,
+) -> Result<(), String> {
+    const LABEL: &str = "code-view";
+
+    if let Some(existing) = app.get_webview_window(LABEL) {
+        let js = format!(
+            "window.__ElevoCodeView_receive__ && window.__ElevoCodeView_receive__({})",
+            serde_json::to_string(&payload).map_err(|e| e.to_string())?,
+        );
+        existing.eval(&js).map_err(|e| e.to_string())?;
+        existing.show().map_err(|e| e.to_string())?;
+        existing.set_focus().map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+
+    let theme = theme_state.0.lock().map_err(|e| e.to_string())?.clone();
+    let script = code_view_initialization_script(&theme, &payload);
+
+    WebviewWindowBuilder::new(
+        &app,
+        LABEL,
+        WebviewUrl::App(PathBuf::from("code-view.html")),
+    )
+    .title("Code View")
+    .inner_size(1200.0, 760.0)
+    .min_inner_size(520.0, 360.0)
     .initialization_script(&script)
     .build()
     .map_err(|e| e.to_string())?;
@@ -836,6 +887,8 @@ pub fn run() {
             open_side_panel,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             open_preview_window,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            open_code_view_window,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             relay_sdk_message,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
