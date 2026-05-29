@@ -10,6 +10,20 @@
     "core:window:allow-close",
     "dialog:allow-save",
     "fs:allow-write-file",
+    "fs:allow-read-file",
+    "fs:allow-mkdir",
+    "fs:allow-remove",
+    "fs:allow-exists",
+    "fs:allow-read-dir",
+    "fs:allow-stat",
+    {
+      "identifier": "fs:scope",
+      "allow": [
+        {
+          "path": "$APPDATA/media-cache/**"
+        }
+      ]
+    },
     "store:allow-load",
     "store:allow-get",
     "os:allow-locale"
