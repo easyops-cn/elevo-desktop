@@ -71,7 +71,7 @@
       "assetProtocol": {
         "enable": true,
         "scope": [
-          "$APPDATA/media-cache/**"
+          "$APPLOCALDATA/media-cache/**"
         ]
       }
     }
