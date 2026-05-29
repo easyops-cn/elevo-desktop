@@ -26,6 +26,7 @@
     },
     "store:allow-load",
     "store:allow-get",
+    "sql:default",
     "os:allow-locale"
   ]
 }

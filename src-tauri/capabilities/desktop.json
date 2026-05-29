@@ -14,6 +14,7 @@
     "process:default",
     "deep-link:default",
     "store:default",
+    "sql:default",
     "notification:default",
     "fs:allow-read-file",
     "fs:allow-write-file",
