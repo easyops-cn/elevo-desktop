@@ -8,10 +8,26 @@
   "permissions": [
     "core:default",
     "core:window:allow-close",
-    "dialog:allow-save",
+    "opener:allow-reveal-item-in-dir",
     "fs:allow-write-file",
+    "fs:allow-read-file",
+    "fs:allow-mkdir",
+    "fs:allow-remove",
+    "fs:allow-exists",
+    "fs:allow-read-dir",
+    "fs:allow-stat",
+    {
+      "identifier": "fs:scope",
+      "allow": [
+        {
+          "path": "$APPLOCALDATA/media-cache/**"
+        }
+      ]
+    },
     "store:allow-load",
     "store:allow-get",
+    "sql:default",
+    "sql:allow-execute",
     "os:allow-locale"
   ]
 }
