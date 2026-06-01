@@ -17,6 +17,7 @@
     "sql:default",
     "sql:allow-execute",
     "notification:default",
+    "opener:allow-reveal-item-in-dir",
     "fs:allow-read-file",
     "fs:allow-write-file",
     "fs:allow-mkdir",
