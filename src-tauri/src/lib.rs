@@ -551,22 +551,11 @@ async fn update_tray_badge(
             .clone()
     };
 
-    let status_color = match sync_status.as_deref() {
-        Some("connecting") => Some(Rgba([38, 166, 91, 255])),
-        Some("reconnecting") => Some(Rgba([245, 166, 35, 255])),
-        Some("error") => Some(Rgba([231, 76, 60, 255])),
-        _ => None,
-    };
-
-    let status_label = match sync_status.as_deref() {
-        Some("connecting") => Some("Connecting"),
-        Some("reconnecting") => Some("Reconnecting"),
-        Some("error") => Some("Connection lost"),
-        _ => None,
-    };
+    let disconnected = sync_status.as_deref() == Some("error");
+    let status_label = disconnected.then_some("Connection lost");
 
     // Restore original icon when there are no unread messages or sync status marks.
-    if count == 0 && status_color.is_none() {
+    if count == 0 && !disconnected {
         #[cfg(target_os = "macos")]
         {
             let icon = tauri::image::Image::from_bytes(include_bytes!("../icons/tray_icon.png"))
@@ -618,10 +607,18 @@ async fn update_tray_badge(
 
     // ── Load base icon first so we can match its height ─────────────────────
 
-    #[cfg(target_os = "macos")]
-    let base_bytes: &[u8] = include_bytes!("../icons/tray_icon.png");
-    #[cfg(not(target_os = "macos"))]
-    let base_bytes: &[u8] = include_bytes!("../icons/icon.png");
+    let base_bytes: &[u8] = if disconnected {
+        include_bytes!("../icons/tray_icon_disconnected.png")
+    } else {
+        #[cfg(target_os = "macos")]
+        {
+            include_bytes!("../icons/tray_icon.png")
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            include_bytes!("../icons/icon.png")
+        }
+    };
 
     let base_img = image::load_from_memory(base_bytes)
         .map_err(|e| format!("Failed to load base icon: {e}"))?
@@ -713,7 +710,7 @@ async fn update_tray_badge(
         None
     };
 
-    // ── Compose base icon + optional status marker + optional badge number ──
+    // ── Compose base icon + optional badge number ───────────────────────────
 
     let badge_w = badge_img.as_ref().map_or(0, RgbaImage::width);
 
@@ -728,33 +725,6 @@ async fn update_tray_badge(
 
     // Both images are same height — no vertical offset needed.
     image::imageops::overlay(&mut composite, &base_img, 0, 0);
-
-    if let Some(color) = status_color {
-        let radius = (base_h / 8).max(4) as i32;
-        let padding = (base_h / 18).max(2) as i32;
-        let center_x = base_w as i32 - radius - padding;
-        let center_y = base_h as i32 - radius - padding;
-        let outline_radius = radius + 2;
-
-        for y in (center_y - outline_radius)..=(center_y + outline_radius) {
-            for x in (center_x - outline_radius)..=(center_x + outline_radius) {
-                if x < 0 || y < 0 || x >= base_w as i32 || y >= base_h as i32 {
-                    continue;
-                }
-                let dx = x - center_x;
-                let dy = y - center_y;
-                let distance_sq = dx * dx + dy * dy;
-                if distance_sq <= outline_radius * outline_radius {
-                    let pixel = if distance_sq <= radius * radius {
-                        color
-                    } else {
-                        Rgba([255, 255, 255, 230])
-                    };
-                    composite.put_pixel(x as u32, y as u32, pixel);
-                }
-            }
-        }
-    }
 
     // Badge number on the right.
     if let Some(badge_img) = &badge_img {
@@ -773,9 +743,9 @@ async fn update_tray_badge(
         .map_err(|e| e.to_string())?;
     tray.set_icon(Some(icon)).map_err(|e| e.to_string())?;
 
-    // macOS: color status dots require a non-template icon.
+    // macOS: keep template mode so the monochrome tray icon adapts to the menu bar.
     #[cfg(target_os = "macos")]
-    tray.set_icon_as_template(status_color.is_none())
+    tray.set_icon_as_template(true)
         .map_err(|e| e.to_string())?;
 
     let tooltip = match (count, status_label) {
