@@ -539,6 +539,7 @@ async fn update_tray_badge(
     #[allow(unused_variables)] app: tauri::AppHandle,
     state: State<'_, TrayState>,
     count: u32,
+    sync_status: Option<String>,
 ) -> Result<(), String> {
     use image::{Rgba, RgbaImage};
 
@@ -550,8 +551,22 @@ async fn update_tray_badge(
             .clone()
     };
 
-    // Restore original icon when there are no unread messages.
-    if count == 0 {
+    let status_color = match sync_status.as_deref() {
+        Some("connecting") => Some(Rgba([38, 166, 91, 255])),
+        Some("reconnecting") => Some(Rgba([245, 166, 35, 255])),
+        Some("error") => Some(Rgba([231, 76, 60, 255])),
+        _ => None,
+    };
+
+    let status_label = match sync_status.as_deref() {
+        Some("connecting") => Some("Connecting"),
+        Some("reconnecting") => Some("Reconnecting"),
+        Some("error") => Some("Connection lost"),
+        _ => None,
+    };
+
+    // Restore original icon when there are no unread messages or sync status marks.
+    if count == 0 && status_color.is_none() {
         #[cfg(target_os = "macos")]
         {
             let icon = tauri::image::Image::from_bytes(include_bytes!("../icons/tray_icon.png"))
@@ -570,9 +585,7 @@ async fn update_tray_badge(
         return Ok(());
     }
 
-    // ── Load system font for anti-aliased text rendering ─────────────────────
-
-    fn load_system_font() -> Result<Vec<u8>, String> {
+    fn load_system_font() -> Option<Vec<u8>> {
         #[cfg(target_os = "macos")]
         let paths: &[&str] = &[
             "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
@@ -597,15 +610,11 @@ async fn update_tray_badge(
 
         for path in paths {
             if let Ok(bytes) = std::fs::read(path) {
-                return Ok(bytes);
+                return Some(bytes);
             }
         }
-        Err("No suitable system font found".to_string())
+        None
     }
-
-    let font_bytes = load_system_font()?;
-    let font = fontdue::Font::from_bytes(font_bytes, fontdue::FontSettings::default())
-        .map_err(|e| format!("Failed to parse font: {e}"))?;
 
     // ── Load base icon first so we can match its height ─────────────────────
 
@@ -623,94 +632,135 @@ async fn update_tray_badge(
 
     // ── Render badge text (anti-aliased) ────────────────────────────────────
 
-    let text = if count > 99 {
-        "99+".to_string()
-    } else {
-        count.to_string()
-    };
+    let badge_img = if count > 0 {
+        let font_bytes = load_system_font().ok_or_else(|| "No suitable system font found".to_string())?;
+        let font = fontdue::Font::from_bytes(font_bytes, fontdue::FontSettings::default())
+            .map_err(|e| format!("Failed to parse font: {e}"))?;
 
-    let font_size: f32 = 50.0;
+        let text = if count > 99 {
+            "99+".to_string()
+        } else {
+            count.to_string()
+        };
 
-    // Rasterize each character individually and collect metrics.
-    let chars: Vec<char> = text.chars().collect();
-    let n = chars.len();
-    let mut char_results: Vec<(fontdue::Metrics, Vec<u8>)> = Vec::with_capacity(n);
-    let mut total_advance: usize = 0;
-    let mut glyph_top: f32 = 0.0;
-    let mut glyph_bottom: f32 = 0.0;
+        let font_size: f32 = 50.0;
 
-    for &ch in &chars {
-        let (metrics, bitmap) = font.rasterize(ch, font_size);
-        let ymin = metrics.ymin as f32;
-        let bottom = metrics.ymin as f32 + metrics.height as f32;
-        if ymin < glyph_top {
-            glyph_top = ymin;
+        // Rasterize each character individually and collect metrics.
+        let chars: Vec<char> = text.chars().collect();
+        let n = chars.len();
+        let mut char_results: Vec<(fontdue::Metrics, Vec<u8>)> = Vec::with_capacity(n);
+        let mut total_advance: usize = 0;
+        let mut glyph_top: f32 = 0.0;
+        let mut glyph_bottom: f32 = 0.0;
+
+        for &ch in &chars {
+            let (metrics, bitmap) = font.rasterize(ch, font_size);
+            let ymin = metrics.ymin as f32;
+            let bottom = metrics.ymin as f32 + metrics.height as f32;
+            if ymin < glyph_top {
+                glyph_top = ymin;
+            }
+            if bottom > glyph_bottom {
+                glyph_bottom = bottom;
+            }
+            total_advance += metrics.advance_width.ceil() as usize;
+            char_results.push((metrics, bitmap));
         }
-        if bottom > glyph_bottom {
-            glyph_bottom = bottom;
-        }
-        total_advance += metrics.advance_width.ceil() as usize;
-        char_results.push((metrics, bitmap));
-    }
 
-    let char_gap: usize = 1;
-    let pad: usize = 2;
-    let inner_w = total_advance + if n > 1 { (n - 1) * char_gap } else { 0 };
-    let img_w: u32 = (inner_w + 2 * pad) as u32;
+        let char_gap: usize = 1;
+        let pad: usize = 2;
+        let inner_w = total_advance + if n > 1 { (n - 1) * char_gap } else { 0 };
+        let img_w: u32 = (inner_w + 2 * pad) as u32;
 
-    #[cfg(target_os = "macos")]
-    let color = Rgba([255, 255, 255, 255]);
-    #[cfg(not(target_os = "macos"))]
-    let color = Rgba([231, 29, 54, 255]);
+        #[cfg(target_os = "macos")]
+        let color = Rgba([255, 255, 255, 255]);
+        #[cfg(not(target_os = "macos"))]
+        let color = Rgba([231, 29, 54, 255]);
 
-    // Create badge image with same height as base icon for perfect vertical alignment.
-    let mut badge_img = RgbaImage::new(img_w, base_h);
+        // Create badge image with same height as base icon for perfect vertical alignment.
+        let mut badge_img = RgbaImage::new(img_w, base_h);
 
-    // Align text baseline at ~76% of icon height.
-    // Digits have no descenders — their bounding box center is below visual center.
-    // Baseline alignment produces a perceptually correct vertical position.
-    let baseline_y = base_h as f32 * 0.76;
-    let y_base: f32 = glyph_top.abs() + baseline_y - glyph_bottom;
-    let mut x_off: usize = pad;
+        // Align text baseline at ~76% of icon height.
+        // Digits have no descenders, so baseline alignment is visually centered.
+        let baseline_y = base_h as f32 * 0.76;
+        let y_base: f32 = glyph_top.abs() + baseline_y - glyph_bottom;
+        let mut x_off: usize = pad;
 
-    for (metrics, bitmap) in &char_results {
-        let glyph_w = metrics.width;
-        let glyph_h = metrics.height;
-        let gx = x_off + metrics.xmin.max(0) as usize;
-        let gy = (y_base + (metrics.ymin as f32).max(0.0)).ceil() as usize;
-        for py in 0..glyph_h {
-            for px in 0..glyph_w {
-                let idx = py * glyph_w + px;
-                if idx < bitmap.len() {
-                    let alpha = bitmap[idx];
-                    if alpha > 0 {
-                        let ix = gx + px;
-                        let iy = gy + py;
-                        if ix < img_w as usize && iy < base_h as usize {
-                            badge_img.put_pixel(ix as u32, iy as u32, Rgba([color[0], color[1], color[2], alpha]));
+        for (metrics, bitmap) in &char_results {
+            let glyph_w = metrics.width;
+            let glyph_h = metrics.height;
+            let gx = x_off + metrics.xmin.max(0) as usize;
+            let gy = (y_base + (metrics.ymin as f32).max(0.0)).ceil() as usize;
+            for py in 0..glyph_h {
+                for px in 0..glyph_w {
+                    let idx = py * glyph_w + px;
+                    if idx < bitmap.len() {
+                        let alpha = bitmap[idx];
+                        if alpha > 0 {
+                            let ix = gx + px;
+                            let iy = gy + py;
+                            if ix < img_w as usize && iy < base_h as usize {
+                                badge_img.put_pixel(ix as u32, iy as u32, Rgba([color[0], color[1], color[2], alpha]));
+                            }
                         }
                     }
                 }
             }
+            x_off += metrics.advance_width.ceil() as usize + char_gap;
         }
-        x_off += metrics.advance_width.ceil() as usize + char_gap;
-    }
+        Some(badge_img)
+    } else {
+        None
+    };
 
-    // ── Compose base icon + badge number ────────────────────────────────────
+    // ── Compose base icon + optional status marker + optional badge number ──
 
-    let badge_w = badge_img.width();
+    let badge_w = badge_img.as_ref().map_or(0, RgbaImage::width);
 
     let gap: u32 = 12;
-    let total_w = base_w + gap + badge_w;
+    let total_w = if badge_w > 0 {
+        base_w + gap + badge_w
+    } else {
+        base_w
+    };
 
     let mut composite = RgbaImage::new(total_w, base_h);
 
     // Both images are same height — no vertical offset needed.
     image::imageops::overlay(&mut composite, &base_img, 0, 0);
 
+    if let Some(color) = status_color {
+        let radius = (base_h / 8).max(4) as i32;
+        let padding = (base_h / 18).max(2) as i32;
+        let center_x = base_w as i32 - radius - padding;
+        let center_y = base_h as i32 - radius - padding;
+        let outline_radius = radius + 2;
+
+        for y in (center_y - outline_radius)..=(center_y + outline_radius) {
+            for x in (center_x - outline_radius)..=(center_x + outline_radius) {
+                if x < 0 || y < 0 || x >= base_w as i32 || y >= base_h as i32 {
+                    continue;
+                }
+                let dx = x - center_x;
+                let dy = y - center_y;
+                let distance_sq = dx * dx + dy * dy;
+                if distance_sq <= outline_radius * outline_radius {
+                    let pixel = if distance_sq <= radius * radius {
+                        color
+                    } else {
+                        Rgba([255, 255, 255, 230])
+                    };
+                    composite.put_pixel(x as u32, y as u32, pixel);
+                }
+            }
+        }
+    }
+
     // Badge number on the right.
-    let badge_x = base_w + gap;
-    image::imageops::overlay(&mut composite, &badge_img, badge_x as i64, 0);
+    if let Some(badge_img) = &badge_img {
+        let badge_x = base_w + gap;
+        image::imageops::overlay(&mut composite, badge_img, badge_x as i64, 0);
+    }
 
     // Encode to PNG and set as tray icon.
     let mut png_buf = std::io::Cursor::new(Vec::new());
@@ -723,12 +773,16 @@ async fn update_tray_badge(
         .map_err(|e| e.to_string())?;
     tray.set_icon(Some(icon)).map_err(|e| e.to_string())?;
 
-    // macOS: keep template mode so system adapts to light/dark menu bar.
+    // macOS: color status dots require a non-template icon.
     #[cfg(target_os = "macos")]
-    tray.set_icon_as_template(true)
+    tray.set_icon_as_template(status_color.is_none())
         .map_err(|e| e.to_string())?;
 
-    let tooltip = format!("Elevo Messenger ({})", count);
+    let tooltip = match (count, status_label) {
+        (0, Some(status)) => format!("Elevo Messenger - {status}"),
+        (_, Some(status)) => format!("Elevo Messenger ({count}) - {status}"),
+        (_, None) => format!("Elevo Messenger ({count})"),
+    };
     tray.set_tooltip(Some(tooltip)).map_err(|e| e.to_string())?;
 
     Ok(())
