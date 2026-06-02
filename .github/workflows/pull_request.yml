@@ -13,14 +13,19 @@ jobs:
         include:
           - platform: 'macos-latest' # for Arm based macs (M1 and above).
             args: '--target aarch64-apple-darwin'
+            artifact-name: elevo-messenger-macos-aarch64
           - platform: 'macos-latest' # for Intel based macs.
             args: '--target x86_64-apple-darwin'
+            artifact-name: elevo-messenger-macos-x86_64
           - platform: 'ubuntu-22.04'
             args: ''
+            artifact-name: elevo-messenger-linux-x86_64
           - platform: 'ubuntu-22.04-arm' # Only available in public repos.
             args: ''
+            artifact-name: elevo-messenger-linux-aarch64
           - platform: 'windows-latest'
             args: ''
+            artifact-name: elevo-messenger-windows-x86_64
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -67,3 +72,10 @@ jobs:
           APPLE_SIGNING_IDENTITY: "-"
         with:
           args: ${{ matrix.args }} --config '{"bundle":{"createUpdaterArtifacts":false}}'
+
+      - name: upload app artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.artifact-name }}
+          path: src-tauri/target/**/bundle/**/*
+          if-no-files-found: error
