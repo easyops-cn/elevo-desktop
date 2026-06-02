@@ -14,11 +14,8 @@
   "keywords": [],
   "author": "Elevo Team",
   "license": "AGPL-3.0-only",
-  "dependencies": {
-    "@tauri-apps/api": "2.10.1"
-  },
   "devDependencies": {
-    "@tauri-apps/cli": "2.10.1",
+    "@tauri-apps/cli": "2.11.2",
     "undici": "8.1.0"
   }
 }

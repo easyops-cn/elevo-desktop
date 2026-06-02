@@ -560,8 +560,7 @@ async fn update_tray_badge(
         {
             let icon = tauri::image::Image::from_bytes(include_bytes!("../icons/tray_icon.png"))
                 .map_err(|e| e.to_string())?;
-            tray.set_icon(Some(icon)).map_err(|e| e.to_string())?;
-            tray.set_icon_as_template(true)
+            tray.set_icon_with_as_template(Some(icon), true)
                 .map_err(|e| e.to_string())?;
         }
         #[cfg(not(target_os = "macos"))]
@@ -741,12 +740,12 @@ async fn update_tray_badge(
 
     let icon = tauri::image::Image::from_bytes(&png_bytes)
         .map_err(|e| e.to_string())?;
-    tray.set_icon(Some(icon)).map_err(|e| e.to_string())?;
-
     // macOS: keep template mode so the monochrome tray icon adapts to the menu bar.
     #[cfg(target_os = "macos")]
-    tray.set_icon_as_template(true)
+    tray.set_icon_with_as_template(Some(icon), true)
         .map_err(|e| e.to_string())?;
+    #[cfg(not(target_os = "macos"))]
+    tray.set_icon(Some(icon)).map_err(|e| e.to_string())?;
 
     let tooltip = match (count, status_label) {
         (0, Some(status)) => format!("Elevo Messenger - {status}"),
