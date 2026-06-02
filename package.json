@@ -4,7 +4,7 @@
   "description": "Elevo Messenger - Matrix client desktop application",
   "main": "index.js",
   "engines": {
-    "node": ">=16.0.0"
+    "node": "^22.12.0 || >=24.0.0"
   },
   "scripts": {
     "tauri": "node scripts/copy-config.mjs && tauri",
