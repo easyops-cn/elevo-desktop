@@ -551,8 +551,8 @@ async fn update_tray_badge(
             .clone()
     };
 
-    let disconnected = sync_status.as_deref() == Some("error");
-    let status_label = disconnected.then_some("Connection lost");
+    let disconnected = sync_status.as_deref() == Some("disconnected");
+    let status_label = disconnected.then_some("Disconnected");
 
     // Restore original icon when there are no unread messages or sync status marks.
     if count == 0 && !disconnected {
