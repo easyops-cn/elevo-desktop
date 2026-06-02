@@ -8,9 +8,9 @@ Installers for macOS and Windows can be downloaded from [Github releases](https:
 
 Operating System | Download
 ---|---
-Windows | <a href='https://github.com/easyops-cn/elevo-desktop/releases/download/elevo-messenger-v1.0.37/Elevo.Messenger_1.0.37_x64_en-US.msi'>Get it for Windows</a>
-macOS Apple Silicon | <a href='https://github.com/easyops-cn/elevo-desktop/releases/download/elevo-messenger-v1.0.37/Elevo.Messenger_1.0.37_aarch64.dmg'>Get it for macOS Apple Silicon</a>
-macOS Intel | <a href='https://github.com/easyops-cn/elevo-desktop/releases/download/elevo-messenger-v1.0.37/Elevo.Messenger_1.0.37_x64.dmg'>Get it for macOS Intel</a>
+Windows | <a href='https://github.com/easyops-cn/elevo-desktop/releases/download/elevo-messenger-v1.0.38/Elevo.Messenger_1.0.38_x64_en-US.msi'>Get it for Windows</a>
+macOS Apple Silicon | <a href='https://github.com/easyops-cn/elevo-desktop/releases/download/elevo-messenger-v1.0.38/Elevo.Messenger_1.0.38_aarch64.dmg'>Get it for macOS Apple Silicon</a>
+macOS Intel | <a href='https://github.com/easyops-cn/elevo-desktop/releases/download/elevo-messenger-v1.0.38/Elevo.Messenger_1.0.38_x64.dmg'>Get it for macOS Intel</a>
 
 ## Local development
 
