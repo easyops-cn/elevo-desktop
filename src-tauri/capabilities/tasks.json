@@ -3,7 +3,8 @@
   "description": "Permissions for task management side panel webviews",
   "windows": ["tasks-*"],
   "permissions": [
-    "core:default"
+    "core:default",
+    "allow-webview-sdk"
   ],
   "csp": "connect-src 'self' ipc: ipc://ipc.localhost"
 }

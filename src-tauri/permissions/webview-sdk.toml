@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-webview-sdk"
+description = "Allow child webviews to use the Elevo Messenger SDK bridge commands."
+commands.allow = ["relay_sdk_message", "close_webview"]

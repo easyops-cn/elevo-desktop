@@ -3,7 +3,8 @@
   "description": "Permissions for child webviews opened by the in-app webview feature",
   "windows": ["webview-*"],
   "permissions": [
-    "core:default"
+    "core:default",
+    "allow-webview-sdk"
   ],
   "csp": "connect-src 'self' ipc: ipc://ipc.localhost"
 }
