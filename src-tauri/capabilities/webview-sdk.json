@@ -1,6 +1,18 @@
 {
   "identifier": "webview-sdk-capability",
   "description": "Permissions for child webviews opened by the in-app webview feature",
+  "remote": {
+    "urls": [
+      "http://localhost:*",
+      "http://localhost:*/*",
+      "http://*.localhost:*",
+      "http://*.localhost:*/*",
+      "https://*.easyops.local",
+      "https://*.easyops.local/*",
+      "https://*.elevo.vip",
+      "https://*.elevo.vip/*"
+    ]
+  },
   "windows": ["webview-*"],
   "permissions": [
     "core:default",
