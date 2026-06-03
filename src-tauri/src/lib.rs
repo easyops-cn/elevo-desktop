@@ -7,6 +7,7 @@ mod menu;
 mod updater;
 
 use std::collections::HashMap;
+use std::fs;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -42,6 +43,12 @@ const ALLOWED_DOMAINS: &[&str] = &[
     "elevo.vip",
 ];
 
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+const EXTERNAL_WEBVIEW_DATA_DIR: &str = "external-webviews";
+
+#[cfg(all(not(any(target_os = "android", target_os = "ios")), target_os = "macos"))]
+const EXTERNAL_WEBVIEW_DATA_STORE_ID: [u8; 16] = *b"elevoextwebview1";
+
 fn is_domain_allowed(url: &str) -> bool {
     if let Ok(parsed) = url::Url::parse(url) {
         if let Some(host) = parsed.host_str() {
@@ -51,6 +58,17 @@ fn is_domain_allowed(url: &str) -> bool {
         }
     }
     false
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+fn external_webview_data_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let dir = app
+        .path()
+        .app_local_data_dir()
+        .map_err(|e| e.to_string())?
+        .join(EXTERNAL_WEBVIEW_DATA_DIR);
+    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir)
 }
 
 /// Derive a window title from a URL: show only the host for standard HTTPS,
@@ -132,9 +150,10 @@ async fn open_webview(
     let app_for_load = app.clone();
     let label_for_load = label.clone();
 
-    let window = WebviewWindowBuilder::new(&app, &label, WebviewUrl::External(parsed))
+    let builder = WebviewWindowBuilder::new(&app, &label, WebviewUrl::External(parsed))
         .title(&title)
         .inner_size(1024.0, 768.0)
+        .data_directory(external_webview_data_dir(&app)?)
         .initialization_script(&script)
         .on_page_load(move |_webview, payload| {
             if matches!(payload.event(), tauri::webview::PageLoadEvent::Started) {
@@ -143,9 +162,12 @@ async fn open_webview(
                     let _ = win.set_title(&new_title);
                 }
             }
-        })
-        .build()
-        .map_err(|e| e.to_string())?;
+        });
+
+    #[cfg(target_os = "macos")]
+    let builder = builder.data_store_identifier(EXTERNAL_WEBVIEW_DATA_STORE_ID);
+
+    let window = builder.build().map_err(|e| e.to_string())?;
 
     // Store label → roomId mapping for later filtering.
     state
@@ -361,10 +383,11 @@ async fn open_side_panel(
     let label_for_load = label.clone();
 
     // WebviewWindowBuilder takes logical pixels (physical / scale_factor).
-    let window = WebviewWindowBuilder::new(&app, &label, WebviewUrl::External(parsed))
+    let builder = WebviewWindowBuilder::new(&app, &label, WebviewUrl::External(parsed))
         .title(&title)
         .inner_size(panel_w / scale_factor, panel_h / scale_factor)
         .position(panel_x / scale_factor, panel_y / scale_factor)
+        .data_directory(external_webview_data_dir(&app)?)
         .initialization_script(&script)
         .on_page_load(move |_webview, payload| {
             if matches!(payload.event(), tauri::webview::PageLoadEvent::Started) {
@@ -373,9 +396,12 @@ async fn open_side_panel(
                     let _ = win.set_title(&new_title);
                 }
             }
-        })
-        .build()
-        .map_err(|e| e.to_string())?;
+        });
+
+    #[cfg(target_os = "macos")]
+    let builder = builder.data_store_identifier(EXTERNAL_WEBVIEW_DATA_STORE_ID);
+
+    let window = builder.build().map_err(|e| e.to_string())?;
 
     // Override any state restored by tauri-plugin-window-state so the panel
     // always appears at the computed position/size, not the saved one.
@@ -803,9 +829,10 @@ async fn open_oauth_window(
     let callback_intercepted = Arc::new(AtomicBool::new(false));
     let intercepted_for_close = callback_intercepted.clone();
 
-    let window = WebviewWindowBuilder::new(&app, &label, WebviewUrl::External(parsed))
+    let builder = WebviewWindowBuilder::new(&app, &label, WebviewUrl::External(parsed))
         .title(&title)
         .inner_size(600.0, 700.0)
+        .data_directory(external_webview_data_dir(&app)?)
         .initialization_script(&script)
         .on_navigation(move |url| {
             if url.scheme() != OAUTH_CALLBACK_SCHEME {
@@ -858,9 +885,12 @@ async fn open_oauth_window(
                     let _ = win.set_title(&new_title);
                 }
             }
-        })
-        .build()
-        .map_err(|e| e.to_string())?;
+        });
+
+    #[cfg(target_os = "macos")]
+    let builder = builder.data_store_identifier(EXTERNAL_WEBVIEW_DATA_STORE_ID);
+
+    let window = builder.build().map_err(|e| e.to_string())?;
 
     // Notify main window when the OAuth window is closed (e.g. user closes it manually).
     // Skip if the callback was already intercepted, to avoid a race with token exchange.

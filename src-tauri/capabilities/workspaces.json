@@ -1,9 +1,22 @@
 {
   "identifier": "workspaces-capability",
   "description": "Permissions for workspace explorer side panel webviews",
+  "remote": {
+    "urls": [
+      "http://localhost:*",
+      "http://localhost:*/*",
+      "http://*.localhost:*",
+      "http://*.localhost:*/*",
+      "https://*.easyops.local",
+      "https://*.easyops.local/*",
+      "https://*.elevo.vip",
+      "https://*.elevo.vip/*"
+    ]
+  },
   "windows": ["workspaces-*"],
   "permissions": [
-    "core:default"
+    "core:default",
+    "allow-webview-sdk"
   ],
   "csp": "connect-src 'self' ipc: ipc://ipc.localhost"
 }
