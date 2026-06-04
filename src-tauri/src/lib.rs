@@ -119,6 +119,21 @@ fn code_view_initialization_script(theme: &str, payload: &serde_json::Value) -> 
     )
 }
 
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+fn activate_window(window: &tauri::WebviewWindow) -> Result<(), tauri::Error> {
+    window.show()?;
+    window.unminimize()?;
+    window.set_focus()?;
+    Ok(())
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+fn activate_window_lossy(window: &tauri::WebviewWindow) {
+    let _ = window.show();
+    let _ = window.unminimize();
+    let _ = window.set_focus();
+}
+
 // ── Desktop-only commands ────────────────────────────────────────────────────
 
 /// Open a URL in a new in-app WebviewWindow (desktop only).
@@ -138,7 +153,7 @@ async fn open_webview(
     }
 
     if let Some(existing) = app.get_webview_window(&label) {
-        existing.set_focus().map_err(|e: tauri::Error| e.to_string())?;
+        activate_window(&existing).map_err(|e| e.to_string())?;
         return Ok(());
     }
 
@@ -217,8 +232,7 @@ async fn open_preview_window(
             serde_json::to_string(&payload).map_err(|e| e.to_string())?,
         );
         existing.eval(&js).map_err(|e| e.to_string())?;
-        existing.show().map_err(|e| e.to_string())?;
-        existing.set_focus().map_err(|e| e.to_string())?;
+        activate_window(&existing).map_err(|e| e.to_string())?;
         return Ok(());
     }
 
@@ -256,8 +270,7 @@ async fn open_code_view_window(
             serde_json::to_string(&payload).map_err(|e| e.to_string())?,
         );
         existing.eval(&js).map_err(|e| e.to_string())?;
-        existing.show().map_err(|e| e.to_string())?;
-        existing.set_focus().map_err(|e| e.to_string())?;
+        activate_window(&existing).map_err(|e| e.to_string())?;
         return Ok(());
     }
 
@@ -369,7 +382,7 @@ async fn open_side_panel(
         existing
             .set_position(tauri::PhysicalPosition::new(panel_x as i32, panel_y as i32))
             .map_err(|e| e.to_string())?;
-        existing.set_focus().map_err(|e| e.to_string())?;
+        activate_window(&existing).map_err(|e| e.to_string())?;
         return Ok(());
     }
 
@@ -918,8 +931,7 @@ pub fn run() {
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             // When a second instance is launched, show and focus the existing window.
             if let Some(win) = app.get_webview_window("main") {
-                let _ = win.show();
-                let _ = win.set_focus();
+                activate_window_lossy(&win);
             }
         }))
         .plugin(tauri_plugin_window_state::Builder::default().build())
@@ -1121,8 +1133,7 @@ pub fn run() {
                         } = event
                         {
                             if let Some(win) = handle.get_webview_window("main") {
-                                let _ = win.show();
-                                let _ = win.set_focus();
+                                activate_window_lossy(&win);
                             }
                         }
                     })
@@ -1130,8 +1141,7 @@ pub fn run() {
                         match event.id().as_ref() {
                             "open" => {
                                 if let Some(win) = handle_menu.get_webview_window("main") {
-                                    let _ = win.show();
-                                    let _ = win.set_focus();
+                                    activate_window_lossy(&win);
                                 }
                             }
                             "quit" => {
@@ -1158,8 +1168,7 @@ pub fn run() {
             {
                 if let tauri::RunEvent::Reopen { .. } = event {
                     if let Some(win) = app.get_webview_window("main") {
-                        let _ = win.show();
-                        let _ = win.set_focus();
+                        activate_window_lossy(&win);
                     }
                 }
             }
