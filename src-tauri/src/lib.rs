@@ -294,7 +294,7 @@ async fn open_code_view_window(
 
 /// Open a URL in a side panel docked to the right of the main window (desktop only).
 /// Adjusts the main window layout (exits fullscreen, resizes, repositions) to make
-/// room for the panel, which occupies 1/3 of the screen width.
+/// room for the panel, which occupies 1/2 of the screen width.
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 #[tauri::command]
 async fn open_side_panel(
@@ -322,23 +322,43 @@ async fn open_side_panel(
     let scale_factor = main_window.scale_factor().map_err(|e| e.to_string())?;
     let monitor_size = monitor.size();
     let monitor_pos = monitor.position();
+    let work_area = monitor.work_area();
+    let was_fullscreen = main_window.is_fullscreen().unwrap_or(false);
+    let was_maximized = main_window.is_maximized().unwrap_or(false);
 
-    let screen_w = monitor_size.width as f64;
-    let mon_x = monitor_pos.x as f64;
-    let two_thirds_w = (screen_w * 2.0 / 3.0).round();
-    let one_third_w = (screen_w / 3.0).round();
+    let screen_w = if was_maximized {
+        work_area.size.width as f64
+    } else {
+        monitor_size.width as f64
+    };
+    let mon_x = if was_maximized {
+        work_area.position.x as f64
+    } else {
+        monitor_pos.x as f64
+    };
+    let half_w = (screen_w / 2.0).round();
 
     // Exit fullscreen / unmaximize so we can resize and reposition.
-    let was_fullscreen = main_window.is_fullscreen().unwrap_or(false);
     if was_fullscreen {
         main_window.set_fullscreen(false).map_err(|e| e.to_string())?;
     }
-    let was_maximized = main_window.is_maximized().unwrap_or(false);
     if was_maximized {
         main_window.unmaximize().map_err(|e| e.to_string())?;
+        main_window
+            .set_position(tauri::PhysicalPosition::new(
+                work_area.position.x,
+                work_area.position.y,
+            ))
+            .map_err(|e| e.to_string())?;
+        main_window
+            .set_size(tauri::PhysicalSize::new(
+                half_w as u32,
+                work_area.size.height,
+            ))
+            .map_err(|e| e.to_string())?;
     }
-    // Allow the window manager to settle after fullscreen/maximize transitions.
-    if was_fullscreen || was_maximized {
+    // Allow the window manager to settle after fullscreen transitions.
+    if was_fullscreen {
         std::thread::sleep(std::time::Duration::from_millis(300));
     }
 
@@ -346,21 +366,37 @@ async fn open_side_panel(
     let main_pos = main_window.outer_position().map_err(|e| e.to_string())?;
     let main_size = main_window.outer_size().map_err(|e| e.to_string())?;
 
-    let mut main_w = main_size.width as f64;
-    let main_h = main_size.height as f64;
-    let mut main_x = main_pos.x as f64;
-    let main_y = main_pos.y as f64;
+    let mut main_w = if was_maximized {
+        half_w
+    } else {
+        main_size.width as f64
+    };
+    let main_h = if was_maximized {
+        work_area.size.height as f64
+    } else {
+        main_size.height as f64
+    };
+    let mut main_x = if was_maximized {
+        work_area.position.x as f64
+    } else {
+        main_pos.x as f64
+    };
+    let main_y = if was_maximized {
+        work_area.position.y as f64
+    } else {
+        main_pos.y as f64
+    };
 
-    // Shrink main window if wider than 2/3 screen.
-    if main_w > two_thirds_w {
-        main_w = two_thirds_w;
+    // Shrink main window if wider than 1/2 screen.
+    if main_w > half_w || was_maximized {
+        main_w = half_w;
         main_window
             .set_size(tauri::PhysicalSize::new(main_w as u32, main_h as u32))
             .map_err(|e| e.to_string())?;
     }
 
-    // Move main window left if not enough room on the right for 1/3 screen.
-    let max_main_x = mon_x + screen_w - main_w - one_third_w;
+    // Move main window left if not enough room on the right for 1/2 screen.
+    let max_main_x = mon_x + screen_w - main_w - half_w;
     if main_x > max_main_x {
         main_x = max_main_x;
         main_window
@@ -371,7 +407,7 @@ async fn open_side_panel(
     // Side panel geometry: docked to the right of the main window.
     let panel_x = main_x + main_w;
     let panel_y = main_y;
-    let panel_w = one_third_w;
+    let panel_w = half_w;
     let panel_h = main_h;
 
     // If the side panel already exists, reposition/resize and focus it.
