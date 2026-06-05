@@ -609,8 +609,7 @@ async fn open_side_panel(
     #[cfg(target_os = "macos")]
     let window = window
         .title_bar_style(TitleBarStyle::Overlay)
-        .hidden_title(true)
-        .traffic_light_position(LogicalPosition::new(12.0, 20.0));
+        .hidden_title(true);
 
     #[cfg(not(any(target_os = "macos", target_os = "android", target_os = "ios")))]
     let window = window.decorations(false);
