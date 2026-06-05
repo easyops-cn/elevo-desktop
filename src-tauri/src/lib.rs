@@ -13,7 +13,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use tauri::{
-    webview::{NewWindowResponse, WebviewBuilder, WebviewWindowBuilder},
+    webview::{NewWindowResponse, Webview, WebviewBuilder, WebviewWindowBuilder},
     window::WindowBuilder,
     Emitter, Manager, State, WebviewUrl,
 };
@@ -131,6 +131,38 @@ fn side_panel_titlebar_label(label: &str) -> String {
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 fn side_panel_content_label(label: &str) -> String {
     format!("{}--content", label)
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+fn toggle_webview_devtools(webview: &Webview<tauri::Wry>) {
+    if webview.is_devtools_open() {
+        webview.close_devtools();
+    } else {
+        webview.open_devtools();
+    }
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+fn toggle_focused_devtools(app: &tauri::AppHandle) {
+    for (label, window) in app.windows() {
+        if window.is_focused().unwrap_or(false) {
+            if let Some(content) = app.get_webview(&side_panel_content_label(&label)) {
+                toggle_webview_devtools(&content);
+                return;
+            }
+        }
+    }
+
+    for (label, webview_window) in app.webview_windows() {
+        if webview_window.is_focused().unwrap_or(false) {
+            if let Some(content) = app.get_webview(&side_panel_content_label(&label)) {
+                toggle_webview_devtools(&content);
+            } else {
+                toggle_webview_devtools(webview_window.as_ref());
+            }
+            break;
+        }
+    }
 }
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
@@ -1413,16 +1445,7 @@ pub fn run() {
                             updater::check_for_update(&handle);
                         }
                         menu::TOGGLE_DEVTOOLS_ID => {
-                            for (_, webview_window) in handle.webview_windows() {
-                                if webview_window.is_focused().unwrap_or(false) {
-                                    if webview_window.is_devtools_open() {
-                                        webview_window.close_devtools();
-                                    } else {
-                                        webview_window.open_devtools();
-                                    }
-                                    break;
-                                }
-                            }
+                            toggle_focused_devtools(&handle);
                         }
                         _ => {}
                     }
