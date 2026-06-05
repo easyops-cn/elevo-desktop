@@ -5,6 +5,9 @@
   "windows": [
     "*--titlebar"
   ],
+  "webviews": [
+    "*--titlebar"
+  ],
   "permissions": [
     "core:default",
     "allow-webview-titlebar"
