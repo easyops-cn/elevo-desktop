@@ -134,10 +134,11 @@ fn side_panel_content_label(label: &str) -> String {
 }
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
-fn titlebar_initialization_script(label: &str, title: &str) -> String {
+fn titlebar_initialization_script(label: &str, title: &str, url: &str) -> String {
     let state = serde_json::json!({
         "label": label,
         "title": title,
+        "url": url,
         "canGoBack": false,
         "canGoForward": false,
     });
@@ -187,6 +188,7 @@ fn history_initialization_script(label: &str) -> String {
       tauriInvoke("webview_titlebar_update_state", {{
         label: LABEL,
         title: currentTitle(),
+        url: window.location.href,
         canGoBack: index > 0,
         canGoForward: index < maxIndex
       }});
@@ -239,12 +241,14 @@ fn emit_webview_titlebar_state(
     app: &tauri::AppHandle,
     label: &str,
     title: &str,
+    url: &str,
     can_go_back: bool,
     can_go_forward: bool,
 ) {
     let state = serde_json::json!({
         "label": label,
         "title": title,
+        "url": url,
         "canGoBack": can_go_back,
         "canGoForward": can_go_forward,
     });
@@ -622,7 +626,7 @@ async fn open_side_panel(
         side_panel_titlebar_label(&label),
         WebviewUrl::App(PathBuf::from("webview-titlebar.html")),
     )
-    .initialization_script(titlebar_initialization_script(&label, &title));
+    .initialization_script(titlebar_initialization_script(&label, &title, parsed.as_str()));
 
     window
         .add_child(
@@ -644,7 +648,14 @@ async fn open_side_panel(
             if let Some(win) = app_for_load.get_window(&label_for_load) {
                 let _ = win.set_title(&new_title);
             }
-            emit_webview_titlebar_state(&app_for_load, &label_for_load, &new_title, false, false);
+            emit_webview_titlebar_state(
+                &app_for_load,
+                &label_for_load,
+                &new_title,
+                payload.url().as_str(),
+                false,
+                false,
+            );
         }
     });
 
@@ -724,10 +735,11 @@ async fn webview_titlebar_update_state(
     app: tauri::AppHandle,
     label: String,
     title: String,
+    url: String,
     can_go_back: bool,
     can_go_forward: bool,
 ) -> Result<(), String> {
-    emit_webview_titlebar_state(&app, &label, &title, can_go_back, can_go_forward);
+    emit_webview_titlebar_state(&app, &label, &title, &url, can_go_back, can_go_forward);
     Ok(())
 }
 
