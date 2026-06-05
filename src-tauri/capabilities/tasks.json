@@ -13,7 +13,7 @@
       "https://*.elevo.vip/*"
     ]
   },
-  "windows": ["tasks-*"],
+  "windows": ["tasks-*", "tasks-*--content"],
   "permissions": [
     "core:default",
     "allow-webview-sdk"

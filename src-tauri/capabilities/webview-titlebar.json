@@ -1,0 +1,15 @@
+{
+  "identifier": "webview-titlebar-capability",
+  "description": "Permissions for local side panel webview titlebars",
+  "local": true,
+  "windows": [
+    "*--titlebar"
+  ],
+  "webviews": [
+    "*--titlebar"
+  ],
+  "permissions": [
+    "core:default",
+    "allow-webview-titlebar"
+  ]
+}
