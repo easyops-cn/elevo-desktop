@@ -605,6 +605,7 @@ async fn open_side_panel(
         .title(&title)
         .inner_size(panel_w_logical, panel_h_logical)
         .position(panel_x / scale_factor, panel_y / scale_factor)
+        .decorations(false)
         .build()
         .map_err(|e| e.to_string())?;
 
