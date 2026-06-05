@@ -604,8 +604,18 @@ async fn open_side_panel(
     let window = WindowBuilder::new(&app, &label)
         .title(&title)
         .inner_size(panel_w_logical, panel_h_logical)
-        .position(panel_x / scale_factor, panel_y / scale_factor)
-        .decorations(false)
+        .position(panel_x / scale_factor, panel_y / scale_factor);
+
+    #[cfg(target_os = "macos")]
+    let window = window
+        .title_bar_style(TitleBarStyle::Overlay)
+        .hidden_title(true)
+        .traffic_light_position(LogicalPosition::new(12.0, 20.0));
+
+    #[cfg(not(any(target_os = "macos", target_os = "android", target_os = "ios")))]
+    let window = window.decorations(false);
+
+    let window = window
         .build()
         .map_err(|e| e.to_string())?;
 
@@ -752,6 +762,52 @@ async fn webview_titlebar_reload(app: tauri::AppHandle, label: String) -> Result
     let content_label = side_panel_content_label(&label);
     if let Some(content) = app.get_webview(&content_label) {
         content.reload().map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+#[tauri::command]
+async fn webview_titlebar_is_maximized(
+    app: tauri::AppHandle,
+    label: String,
+) -> Result<bool, String> {
+    app.get_window(&label)
+        .ok_or_else(|| format!("Window not found: {}", label))?
+        .is_maximized()
+        .map_err(|e| e.to_string())
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+#[tauri::command]
+async fn webview_titlebar_minimize(app: tauri::AppHandle, label: String) -> Result<(), String> {
+    if let Some(window) = app.get_window(&label) {
+        window.minimize().map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+#[tauri::command]
+async fn webview_titlebar_toggle_maximize(
+    app: tauri::AppHandle,
+    label: String,
+) -> Result<(), String> {
+    if let Some(window) = app.get_window(&label) {
+        if window.is_maximized().unwrap_or(false) {
+            window.unmaximize().map_err(|e| e.to_string())?;
+        } else {
+            window.maximize().map_err(|e| e.to_string())?;
+        }
+    }
+    Ok(())
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+#[tauri::command]
+async fn webview_titlebar_close(app: tauri::AppHandle, label: String) -> Result<(), String> {
+    if let Some(window) = app.get_window(&label) {
+        window.close().map_err(|e| e.to_string())?;
     }
     Ok(())
 }
@@ -1291,6 +1347,14 @@ pub fn run() {
             webview_titlebar_go_forward,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             webview_titlebar_reload,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            webview_titlebar_is_maximized,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            webview_titlebar_minimize,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            webview_titlebar_toggle_maximize,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            webview_titlebar_close,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             update_tray_badge,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]

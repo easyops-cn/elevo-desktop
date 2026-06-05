@@ -5,4 +5,8 @@ commands.allow = [
   "webview_titlebar_go_back",
   "webview_titlebar_go_forward",
   "webview_titlebar_reload",
+  "webview_titlebar_is_maximized",
+  "webview_titlebar_minimize",
+  "webview_titlebar_toggle_maximize",
+  "webview_titlebar_close",
 ]
