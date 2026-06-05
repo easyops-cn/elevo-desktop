@@ -13,7 +13,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use tauri::{
-    webview::{NewWindowResponse, WebviewWindowBuilder},
+    webview::{NewWindowResponse, WebviewBuilder, WebviewWindowBuilder},
+    window::WindowBuilder,
     Emitter, Manager, State, WebviewUrl,
 };
 #[cfg(target_os = "macos")]
@@ -23,7 +24,7 @@ use tauri_plugin_deep_link::DeepLinkExt;
 use tauri_plugin_opener::OpenerExt;
 
 /// Managed state that maps each child webview label to its associated roomId.
-struct WebviewRoomMap(Mutex<HashMap<String, String>>);
+struct WebviewRoomMap(Arc<Mutex<HashMap<String, String>>>);
 
 /// Managed state storing the current theme kind ("light" or "dark").
 struct CurrentTheme(Mutex<String>);
@@ -45,6 +46,9 @@ const ALLOWED_DOMAINS: &[&str] = &[
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 const EXTERNAL_WEBVIEW_DATA_DIR: &str = "external-webviews";
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+const SIDE_PANEL_TITLEBAR_HEIGHT: f64 = 40.0;
 
 #[cfg(all(not(any(target_os = "android", target_os = "ios")), target_os = "macos"))]
 const EXTERNAL_WEBVIEW_DATA_STORE_ID: [u8; 16] = *b"elevoextwebview1";
@@ -120,6 +124,156 @@ fn code_view_initialization_script(theme: &str, payload: &serde_json::Value) -> 
 }
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
+fn side_panel_titlebar_label(label: &str) -> String {
+    format!("{}--titlebar", label)
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+fn side_panel_content_label(label: &str) -> String {
+    format!("{}--content", label)
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+fn titlebar_initialization_script(label: &str, title: &str) -> String {
+    let state = serde_json::json!({
+        "label": label,
+        "title": title,
+        "canGoBack": false,
+        "canGoForward": false,
+    });
+    format!(
+        r#"(function () {{
+  window.__ElevoWebviewTitlebar_initialState__ = {};
+}})();"#,
+        state
+    )
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+fn history_initialization_script(label: &str) -> String {
+    format!(
+        r#"(function () {{
+  if (window.__ElevoWebviewHistoryInstalled__) return;
+  window.__ElevoWebviewHistoryInstalled__ = true;
+  const LABEL = {};
+  const tauriInternals = window.__TAURI_INTERNALS__;
+  const tauriInvoke = (cmd, payload) => {{
+    if (!tauriInternals) return;
+    const callback = tauriInternals.transformCallback(function () {{}}, true);
+    const error = tauriInternals.transformCallback(function () {{}}, true);
+    tauriInternals.postMessage({{ cmd, callback, error, payload }});
+  }};
+  const currentTitle = () => {{
+    try {{
+      return window.location.protocol === "https:" && !window.location.port
+        ? window.location.hostname
+        : window.location.origin;
+    }} catch (_) {{
+      return "";
+    }}
+  }};
+  const stateKey = "__elevoWebviewHistoryIndex";
+  let index = Number(history.state && history.state[stateKey]);
+  if (!Number.isFinite(index)) {{
+    index = Number(sessionStorage.getItem("__elevo_history_index__") || "0");
+    try {{
+      history.replaceState(Object.assign({{}}, history.state, {{ [stateKey]: index }}), "", location.href);
+    }} catch (_) {{}}
+  }}
+  let maxIndex = Number(sessionStorage.getItem("__elevo_history_max_index__") || String(index));
+  maxIndex = Math.max(maxIndex, index);
+  const report = () => {{
+    try {{
+      tauriInvoke("webview_titlebar_update_state", {{
+        label: LABEL,
+        title: currentTitle(),
+        canGoBack: index > 0,
+        canGoForward: index < maxIndex
+      }});
+    }} catch (_) {{}}
+  }};
+  const persist = () => {{
+    sessionStorage.setItem("__elevo_history_index__", String(index));
+    sessionStorage.setItem("__elevo_history_max_index__", String(maxIndex));
+  }};
+  const push = () => {{
+    index += 1;
+    maxIndex = index;
+    try {{
+      history.replaceState(Object.assign({{}}, history.state, {{ [stateKey]: index }}), "", location.href);
+    }} catch (_) {{}}
+    persist();
+    window.setTimeout(report, 0);
+  }};
+  const originalPushState = history.pushState;
+  const originalReplaceState = history.replaceState;
+  history.pushState = function () {{
+    const result = originalPushState.apply(this, arguments);
+    push();
+    return result;
+  }};
+  history.replaceState = function () {{
+    if (arguments.length > 0) {{
+      arguments[0] = Object.assign({{}}, arguments[0], {{ [stateKey]: index }});
+    }}
+    const result = originalReplaceState.apply(this, arguments);
+    window.setTimeout(report, 0);
+    return result;
+  }};
+  window.addEventListener("popstate", (event) => {{
+    const nextIndex = Number(event.state && event.state[stateKey]);
+    index = Number.isFinite(nextIndex) ? nextIndex : Math.max(0, index - 1);
+    maxIndex = Math.max(maxIndex, index);
+    persist();
+    window.setTimeout(report, 0);
+  }});
+  window.addEventListener("pageshow", report);
+  window.setTimeout(report, 0);
+}})();"#,
+        serde_json::to_string(label).unwrap()
+    )
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+fn emit_webview_titlebar_state(
+    app: &tauri::AppHandle,
+    label: &str,
+    title: &str,
+    can_go_back: bool,
+    can_go_forward: bool,
+) {
+    let state = serde_json::json!({
+        "label": label,
+        "title": title,
+        "canGoBack": can_go_back,
+        "canGoForward": can_go_forward,
+    });
+    if let Some(titlebar) = app.get_webview(&side_panel_titlebar_label(label)) {
+        let js = format!(
+            "window.__ElevoWebviewTitlebar_receive__ && window.__ElevoWebviewTitlebar_receive__({})",
+            state
+        );
+        let _ = titlebar.eval(js);
+    }
+    if let Some(main) = app.get_webview_window("main") {
+        let _ = main.emit("webview-titlebar-state", state);
+    }
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+fn resize_side_panel_children(app: &tauri::AppHandle, label: &str, width: f64, height: f64) {
+    if let Some(titlebar) = app.get_webview(&side_panel_titlebar_label(label)) {
+        let _ = titlebar.set_position(tauri::LogicalPosition::new(0.0, 0.0));
+        let _ = titlebar.set_size(tauri::LogicalSize::new(width, SIDE_PANEL_TITLEBAR_HEIGHT));
+    }
+    if let Some(content) = app.get_webview(&side_panel_content_label(label)) {
+        let content_h = (height - SIDE_PANEL_TITLEBAR_HEIGHT).max(1.0);
+        let _ = content.set_position(tauri::LogicalPosition::new(0.0, SIDE_PANEL_TITLEBAR_HEIGHT));
+        let _ = content.set_size(tauri::LogicalSize::new(width, content_h));
+    }
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 fn activate_window(window: &tauri::WebviewWindow) -> Result<(), tauri::Error> {
     window.show()?;
     window.unminimize()?;
@@ -132,6 +286,14 @@ fn activate_window_lossy(window: &tauri::WebviewWindow) {
     let _ = window.show();
     let _ = window.unminimize();
     let _ = window.set_focus();
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+fn activate_plain_window(window: &tauri::Window) -> Result<(), tauri::Error> {
+    window.show()?;
+    window.unminimize()?;
+    window.set_focus()?;
+    Ok(())
 }
 
 // ── Desktop-only commands ────────────────────────────────────────────────────
@@ -410,47 +572,85 @@ async fn open_side_panel(
     let panel_w = half_w;
     let panel_h = main_h;
 
-    // If the side panel already exists, reposition/resize and focus it.
-    if let Some(existing) = app.get_webview_window(&label) {
+    let panel_w_logical = panel_w / scale_factor;
+    let panel_h_logical = panel_h / scale_factor;
+
+    // If the side panel already exists, reposition/resize children and focus it.
+    if let Some(existing) = app.get_window(&label) {
         existing
             .set_size(tauri::PhysicalSize::new(panel_w as u32, panel_h as u32))
             .map_err(|e| e.to_string())?;
         existing
             .set_position(tauri::PhysicalPosition::new(panel_x as i32, panel_y as i32))
             .map_err(|e| e.to_string())?;
-        activate_window(&existing).map_err(|e| e.to_string())?;
+        resize_side_panel_children(&app, &label, panel_w_logical, panel_h_logical);
+        activate_plain_window(&existing).map_err(|e| e.to_string())?;
         return Ok(());
     }
 
     // Create the side panel window.
     let theme = theme_state.0.lock().map_err(|e| e.to_string())?.clone();
     let parsed: tauri::Url = url.parse().map_err(|e: url::ParseError| e.to_string())?;
-    let script = sdk_initialization_script(&label, &room_id, &theme);
     let title = title_from_url(&parsed, &label);
+    let script = format!(
+        "{}\n{}",
+        sdk_initialization_script(&label, &room_id, &theme),
+        history_initialization_script(&label)
+    );
 
     let app_for_load = app.clone();
     let label_for_load = label.clone();
 
-    // WebviewWindowBuilder takes logical pixels (physical / scale_factor).
-    let builder = WebviewWindowBuilder::new(&app, &label, WebviewUrl::External(parsed))
+    let window = WindowBuilder::new(&app, &label)
         .title(&title)
-        .inner_size(panel_w / scale_factor, panel_h / scale_factor)
+        .inner_size(panel_w_logical, panel_h_logical)
         .position(panel_x / scale_factor, panel_y / scale_factor)
-        .data_directory(external_webview_data_dir(&app)?)
-        .initialization_script(&script)
-        .on_page_load(move |_webview, payload| {
-            if matches!(payload.event(), tauri::webview::PageLoadEvent::Started) {
-                let new_title = title_from_url(payload.url(), &label_for_load);
-                if let Some(win) = app_for_load.get_webview_window(&label_for_load) {
-                    let _ = win.set_title(&new_title);
-                }
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let titlebar_builder = WebviewBuilder::new(
+        side_panel_titlebar_label(&label),
+        WebviewUrl::App(PathBuf::from("webview-titlebar.html")),
+    )
+    .initialization_script(titlebar_initialization_script(&label, &title));
+
+    window
+        .add_child(
+            titlebar_builder,
+            tauri::LogicalPosition::new(0.0, 0.0),
+            tauri::LogicalSize::new(panel_w_logical, SIDE_PANEL_TITLEBAR_HEIGHT),
+        )
+        .map_err(|e| e.to_string())?;
+
+    let builder = WebviewBuilder::new(
+        side_panel_content_label(&label),
+        WebviewUrl::External(parsed),
+    )
+    .data_directory(external_webview_data_dir(&app)?)
+    .initialization_script(&script)
+    .on_page_load(move |_webview, payload| {
+        if matches!(payload.event(), tauri::webview::PageLoadEvent::Started) {
+            let new_title = title_from_url(payload.url(), &label_for_load);
+            if let Some(win) = app_for_load.get_window(&label_for_load) {
+                let _ = win.set_title(&new_title);
             }
-        });
+            emit_webview_titlebar_state(&app_for_load, &label_for_load, &new_title, false, false);
+        }
+    });
 
     #[cfg(target_os = "macos")]
     let builder = builder.data_store_identifier(EXTERNAL_WEBVIEW_DATA_STORE_ID);
 
-    let window = builder.build().map_err(|e| e.to_string())?;
+    let _content = window
+        .add_child(
+            builder,
+            tauri::LogicalPosition::new(0.0, SIDE_PANEL_TITLEBAR_HEIGHT),
+            tauri::LogicalSize::new(
+                panel_w_logical,
+                (panel_h_logical - SIDE_PANEL_TITLEBAR_HEIGHT).max(1.0),
+            ),
+        )
+        .map_err(|e| e.to_string())?;
 
     // Override any state restored by tauri-plugin-window-state so the panel
     // always appears at the computed position/size, not the saved one.
@@ -460,6 +660,7 @@ async fn open_side_panel(
     window
         .set_position(tauri::PhysicalPosition::new(panel_x as i32, panel_y as i32))
         .map_err(|e| e.to_string())?;
+    resize_side_panel_children(&app, &label, panel_w_logical, panel_h_logical);
 
     // Store label → roomId mapping for later filtering.
     state
@@ -470,17 +671,30 @@ async fn open_side_panel(
 
     // Notify main window when this webview is opened.
     if let Some(main) = app.get_webview_window("main") {
-        let _ = main.emit(
-            "webview-opened",
-            serde_json::json!({ "label": &label }),
-        );
+        let _ = main.emit("webview-opened", serde_json::json!({ "label": &label }));
     }
 
     // Notify main window when this webview is closed.
     let label_clone = label.clone();
     let app_clone = app.clone();
-    window.on_window_event(move |event| {
-        if let tauri::WindowEvent::Destroyed = event {
+    let state_for_close = state.inner().0.clone();
+    window.on_window_event(move |event| match event {
+        tauri::WindowEvent::Resized(size) => {
+            let scale_factor = app_clone
+                .get_window(&label_clone)
+                .and_then(|window| window.scale_factor().ok())
+                .unwrap_or(1.0);
+            resize_side_panel_children(
+                &app_clone,
+                &label_clone,
+                size.width as f64 / scale_factor,
+                size.height as f64 / scale_factor,
+            );
+        }
+        tauri::WindowEvent::Destroyed => {
+            if let Ok(mut map) = state_for_close.lock() {
+                map.remove(&label_clone);
+            }
             if let Some(main) = app_clone.get_webview_window("main") {
                 let _ = main.emit(
                     "webview-closed",
@@ -488,8 +702,56 @@ async fn open_side_panel(
                 );
             }
         }
+        _ => {}
     });
 
+    Ok(())
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+#[tauri::command]
+async fn webview_titlebar_update_state(
+    app: tauri::AppHandle,
+    label: String,
+    title: String,
+    can_go_back: bool,
+    can_go_forward: bool,
+) -> Result<(), String> {
+    emit_webview_titlebar_state(&app, &label, &title, can_go_back, can_go_forward);
+    Ok(())
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+#[tauri::command]
+async fn webview_titlebar_go_back(app: tauri::AppHandle, label: String) -> Result<(), String> {
+    let content_label = side_panel_content_label(&label);
+    if let Some(content) = app.get_webview(&content_label) {
+        content
+            .eval("window.history.back();")
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+#[tauri::command]
+async fn webview_titlebar_go_forward(app: tauri::AppHandle, label: String) -> Result<(), String> {
+    let content_label = side_panel_content_label(&label);
+    if let Some(content) = app.get_webview(&content_label) {
+        content
+            .eval("window.history.forward();")
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+#[tauri::command]
+async fn webview_titlebar_reload(app: tauri::AppHandle, label: String) -> Result<(), String> {
+    let content_label = side_panel_content_label(&label);
+    if let Some(content) = app.get_webview(&content_label) {
+        content.reload().map_err(|e| e.to_string())?;
+    }
     Ok(())
 }
 
@@ -525,7 +787,10 @@ async fn send_to_webview(
     channel: String,
     data: serde_json::Value,
 ) -> Result<(), String> {
-    if let Some(child) = app.get_webview_window(&label) {
+    if let Some(child) = app
+        .get_webview(&side_panel_content_label(&label))
+        .or_else(|| app.get_webview(&label))
+    {
         let js = format!(
             "window.__ElevoMessengerSDK_receive__ && window.__ElevoMessengerSDK_receive__({}, {})",
             serde_json::to_string(&channel).unwrap(),
@@ -554,11 +819,10 @@ async fn send_to_all_webviews(
         serde_json::to_string(&data).unwrap(),
     );
     let map = state.0.lock().map_err(|e| e.to_string())?;
-    for (label, window) in app.webview_windows() {
-        if window.label() == "main" {
-            continue;
-        }
-        if map.get(&label).map(|r| r == &room_id).unwrap_or(false) {
+    for (label, _room) in map.iter().filter(|(_, r)| *r == &room_id) {
+        if let Some(content) = app.get_webview(&side_panel_content_label(label)) {
+            let _ = content.eval(&js);
+        } else if let Some(window) = app.get_webview_window(label) {
             let _ = window.eval(&js);
         }
     }
@@ -570,6 +834,7 @@ async fn send_to_all_webviews(
 #[tauri::command]
 async fn set_theme(
     app: tauri::AppHandle,
+    state: State<'_, WebviewRoomMap>,
     theme_state: State<'_, CurrentTheme>,
     theme_kind: String,
 ) -> Result<(), String> {
@@ -583,8 +848,21 @@ async fn set_theme(
         serde_json::to_string("theme_change").unwrap(),
         serde_json::to_string(&theme_kind).unwrap(),
     );
-    for (_, window) in app.webview_windows() {
-        if window.label() != "main" {
+    let map = state.0.lock().map_err(|e| e.to_string())?;
+    for label in map.keys() {
+        if let Some(content) = app.get_webview(&side_panel_content_label(label)) {
+            let _ = content.eval(&js);
+        }
+    }
+    drop(map);
+
+    for (label, window) in app.webview_windows() {
+        if let Some(content) = app.get_webview(&side_panel_content_label(&label)) {
+            let _ = content.eval(&js);
+        } else if window.label() != "main"
+            && !label.ends_with("--titlebar")
+            && !label.ends_with("--content")
+        {
             let _ = window.eval(&js);
         }
     }
@@ -600,6 +878,8 @@ async fn close_webview(
     label: String,
 ) -> Result<(), String> {
     if let Some(w) = app.get_webview_window(&label) {
+        w.close().map_err(|e| e.to_string())?;
+    } else if let Some(w) = app.get_window(&label) {
         w.close().map_err(|e| e.to_string())?;
     }
     state.0.lock().map_err(|e| e.to_string())?.remove(&label);
@@ -981,7 +1261,7 @@ pub fn run() {
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_deep_link::init())
-        .manage(WebviewRoomMap(Mutex::new(HashMap::new())))
+        .manage(WebviewRoomMap(Arc::new(Mutex::new(HashMap::new()))))
         .manage(CurrentTheme(Mutex::new("light".to_string())))
         .invoke_handler(tauri::generate_handler![
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
@@ -1002,6 +1282,14 @@ pub fn run() {
             set_theme,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             close_webview,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            webview_titlebar_update_state,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            webview_titlebar_go_back,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            webview_titlebar_go_forward,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            webview_titlebar_reload,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             update_tray_badge,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]

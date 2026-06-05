@@ -13,7 +13,7 @@
       "https://*.elevo.vip/*"
     ]
   },
-  "windows": ["workspaces-*"],
+  "windows": ["workspaces-*", "workspaces-*--content"],
   "permissions": [
     "core:default",
     "allow-webview-sdk"

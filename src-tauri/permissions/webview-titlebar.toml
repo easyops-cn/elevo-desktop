@@ -1,0 +1,8 @@
+[[permission]]
+identifier = "allow-webview-titlebar"
+description = "Allow local webview titlebar controls to navigate their paired content webview."
+commands.allow = [
+  "webview_titlebar_go_back",
+  "webview_titlebar_go_forward",
+  "webview_titlebar_reload",
+]

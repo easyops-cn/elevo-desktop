@@ -13,7 +13,7 @@
       "https://*.elevo.vip/*"
     ]
   },
-  "windows": ["webview-*"],
+  "windows": ["webview-*", "webview-*--content"],
   "permissions": [
     "core:default",
     "allow-webview-sdk"
