@@ -823,6 +823,18 @@ async fn webview_titlebar_is_maximized(
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 #[tauri::command]
+async fn webview_titlebar_start_dragging(
+    app: tauri::AppHandle,
+    label: String,
+) -> Result<(), String> {
+    if let Some(window) = app.get_window(&label) {
+        window.start_dragging().map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+#[tauri::command]
 async fn webview_titlebar_minimize(app: tauri::AppHandle, label: String) -> Result<(), String> {
     if let Some(window) = app.get_window(&label) {
         window.minimize().map_err(|e| e.to_string())?;
@@ -1392,6 +1404,8 @@ pub fn run() {
             webview_titlebar_reload,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             webview_titlebar_is_maximized,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            webview_titlebar_start_dragging,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             webview_titlebar_minimize,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
