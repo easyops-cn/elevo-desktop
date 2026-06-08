@@ -11,3 +11,10 @@ commands.allow = [
   "update_tray_badge",
   "update_menu_state",
 ]
+
+[[permission]]
+identifier = "allow-open-side-panel"
+description = "Allow local desktop windows to open workspace side panels."
+commands.allow = [
+  "open_side_panel",
+]

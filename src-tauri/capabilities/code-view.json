@@ -8,6 +8,7 @@
   "permissions": [
     "core:default",
     "core:window:allow-close",
+    "allow-open-side-panel",
     "store:allow-load",
     "store:allow-get",
     "os:allow-locale"
