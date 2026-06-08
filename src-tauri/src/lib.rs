@@ -611,7 +611,11 @@ async fn open_side_panel(
     let panel_w_logical = panel_w / scale_factor;
     let panel_h_logical = panel_h / scale_factor;
 
-    // If the side panel already exists, reposition/resize children and focus it.
+    let parsed: tauri::Url = url.parse().map_err(|e: url::ParseError| e.to_string())?;
+
+    // If the side panel already exists, reposition/resize children, navigate it,
+    // and focus it. Re-navigation matters for workspace deep links such as
+    // `?file=...` when the user picks a different file from code view.
     if let Some(existing) = app.get_window(&label) {
         existing
             .set_size(tauri::PhysicalSize::new(panel_w as u32, panel_h as u32))
@@ -620,13 +624,23 @@ async fn open_side_panel(
             .set_position(tauri::PhysicalPosition::new(panel_x as i32, panel_y as i32))
             .map_err(|e| e.to_string())?;
         resize_side_panel_children(&app, &label, panel_w_logical, panel_h_logical);
+        let title = title_from_url(&parsed, &label);
+        existing.set_title(&title).map_err(|e| e.to_string())?;
+        emit_webview_titlebar_state(&app, &label, &title, parsed.as_str(), false, false);
+        if let Some(content) = app.get_webview(&side_panel_content_label(&label)) {
+            let js = format!(
+                "if (window.location.href !== {}) window.location.assign({});",
+                serde_json::to_string(parsed.as_str()).map_err(|e| e.to_string())?,
+                serde_json::to_string(parsed.as_str()).map_err(|e| e.to_string())?,
+            );
+            content.eval(&js).map_err(|e| e.to_string())?;
+        }
         activate_plain_window(&existing).map_err(|e| e.to_string())?;
         return Ok(());
     }
 
     // Create the side panel window.
     let theme = theme_state.0.lock().map_err(|e| e.to_string())?.clone();
-    let parsed: tauri::Url = url.parse().map_err(|e: url::ParseError| e.to_string())?;
     let title = title_from_url(&parsed, &label);
     let script = format!(
         "{}\n{}",
