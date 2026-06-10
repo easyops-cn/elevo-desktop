@@ -1,0 +1,17 @@
+{
+  "identifier": "bridge-explorer-capability",
+  "description": "Permissions for bridge workspace explorer windows",
+  "local": true,
+  "windows": [
+    "bridge-explorer-*"
+  ],
+  "permissions": [
+    "core:default",
+    "core:window:allow-close",
+    "store:allow-load",
+    "store:allow-get",
+    "os:allow-locale",
+    "dialog:allow-save",
+    "fs:allow-write-file"
+  ]
+}

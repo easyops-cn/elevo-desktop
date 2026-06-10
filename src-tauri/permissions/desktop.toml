@@ -5,6 +5,7 @@ commands.allow = [
   "open_side_panel",
   "open_preview_window",
   "open_code_view_window",
+  "open_bridge_explorer_window",
   "open_oauth_window",
   "send_to_all_webviews",
   "set_theme",
