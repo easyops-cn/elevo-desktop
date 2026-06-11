@@ -12,6 +12,7 @@
     "store:allow-get",
     "os:allow-locale",
     "dialog:allow-save",
-    "fs:allow-write-file"
+    "fs:allow-write-file",
+    "allow-relay-sdk-message"
   ]
 }

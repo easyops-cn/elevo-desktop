@@ -8,6 +8,7 @@ commands.allow = [
   "open_bridge_explorer_window",
   "open_oauth_window",
   "send_to_all_webviews",
+  "send_to_webview",
   "set_theme",
   "update_tray_badge",
   "update_menu_state",
@@ -18,4 +19,11 @@ identifier = "allow-open-side-panel"
 description = "Allow local desktop windows to open workspace side panels."
 commands.allow = [
   "open_side_panel",
+]
+
+[[permission]]
+identifier = "allow-relay-sdk-message"
+description = "Allow standalone local windows to relay SDK messages to the main window."
+commands.allow = [
+  "relay_sdk_message",
 ]
