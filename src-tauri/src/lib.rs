@@ -124,6 +124,28 @@ fn code_view_initialization_script(theme: &str, payload: &serde_json::Value) -> 
 }
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
+fn bridge_explorer_initialization_script(theme: &str, payload: &serde_json::Value) -> String {
+    format!(
+        r#"(function () {{
+  window.__ElevoBridgeExplorer_initialTheme__ = {};
+  window.__ElevoBridgeExplorer_initialPayload__ = {};
+}})();"#,
+        serde_json::to_string(theme).unwrap(),
+        serde_json::to_string(payload).unwrap()
+    )
+}
+
+/// Build a stable, filesystem/label-safe window label for a workspace explorer.
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+fn bridge_explorer_label(workspace_id: &str) -> String {
+    let safe: String = workspace_id
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
+        .collect();
+    format!("bridge-explorer-{}", safe)
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 fn side_panel_titlebar_label(label: &str) -> String {
     format!("{}--titlebar", label)
 }
@@ -482,6 +504,55 @@ async fn open_code_view_window(
     )
     .title("Code View")
     .inner_size(1200.0, 760.0)
+    .min_inner_size(520.0, 360.0)
+    .initialization_script(&script)
+    .build()
+    .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+/// Payload for opening a bridge workspace explorer window.
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct BridgeExplorerPayload {
+    workspace_id: String,
+    workspace_name: String,
+    /// Bridge provider segment, verbatim from room state (already includes `-bridge`).
+    bridge_provider: String,
+    matrix_token: String,
+    homeserver_url: String,
+}
+
+/// Open (or focus) a read-only file explorer window for a bridge-provider
+/// workspace (desktop only). Each workspace gets its own window keyed by a
+/// stable label, so reopening the same workspace focuses the existing window.
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+#[tauri::command]
+async fn open_bridge_explorer_window(
+    app: tauri::AppHandle,
+    theme_state: State<'_, CurrentTheme>,
+    payload: BridgeExplorerPayload,
+) -> Result<(), String> {
+    let label = bridge_explorer_label(&payload.workspace_id);
+
+    if let Some(existing) = app.get_webview_window(&label) {
+        activate_window(&existing).map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+
+    let theme = theme_state.0.lock().map_err(|e| e.to_string())?.clone();
+    let payload_json = serde_json::to_value(&payload).map_err(|e| e.to_string())?;
+    let script = bridge_explorer_initialization_script(&theme, &payload_json);
+
+    WebviewWindowBuilder::new(
+        &app,
+        &label,
+        WebviewUrl::App(PathBuf::from("bridge-explorer.html")),
+    )
+    .title(&payload.workspace_name)
+    .inner_size(1100.0, 740.0)
     .min_inner_size(520.0, 360.0)
     .initialization_script(&script)
     .build()
@@ -1398,6 +1469,8 @@ pub fn run() {
             open_preview_window,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             open_code_view_window,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            open_bridge_explorer_window,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             relay_sdk_message,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
