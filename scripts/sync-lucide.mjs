@@ -57,6 +57,10 @@ const ICONS = [
   'mail',
   'settings',
   'shield-user',
+  'circle',
+  'clock',
+  'loader-circle',
+  'circle-check',
 ];
 
 function kebabToPascal(str) {
