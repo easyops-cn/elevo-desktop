@@ -551,7 +551,7 @@ async fn open_bridge_explorer_window(
         &label,
         WebviewUrl::App(PathBuf::from("bridge-explorer.html")),
     )
-    .title(&payload.workspace_name)
+    .title("Workspace Explorer")
     .inner_size(1100.0, 740.0)
     .min_inner_size(520.0, 360.0)
     .initialization_script(&script)
