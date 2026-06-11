@@ -6,6 +6,7 @@ commands.allow = [
   "open_preview_window",
   "open_code_view_window",
   "open_bridge_explorer_window",
+  "open_task_board_window",
   "open_oauth_window",
   "send_to_all_webviews",
   "send_to_webview",

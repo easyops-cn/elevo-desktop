@@ -146,6 +146,28 @@ fn bridge_explorer_label(workspace_id: &str) -> String {
 }
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
+fn task_board_initialization_script(theme: &str, payload: &serde_json::Value) -> String {
+    format!(
+        r#"(function () {{
+  window.__ElevoTaskBoard_initialTheme__ = {};
+  window.__ElevoTaskBoard_initialPayload__ = {};
+}})();"#,
+        serde_json::to_string(theme).unwrap(),
+        serde_json::to_string(payload).unwrap()
+    )
+}
+
+/// Build a stable, filesystem/label-safe window label for a task board.
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+fn task_board_label(workspace_id: &str) -> String {
+    let safe: String = workspace_id
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
+        .collect();
+    format!("task-board-{}", safe)
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 fn side_panel_titlebar_label(label: &str) -> String {
     format!("{}--titlebar", label)
 }
@@ -552,6 +574,55 @@ async fn open_bridge_explorer_window(
         WebviewUrl::App(PathBuf::from("bridge-explorer.html")),
     )
     .title("Workspace Explorer")
+    .inner_size(1100.0, 740.0)
+    .min_inner_size(520.0, 360.0)
+    .initialization_script(&script)
+    .build()
+    .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+/// Payload for opening a task board window.
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct TaskBoardPayload {
+    workspace_id: String,
+    workspace_name: String,
+    /// Bridge provider segment, verbatim from room state (already includes `-bridge`).
+    bridge_provider: String,
+    matrix_token: String,
+    homeserver_url: String,
+}
+
+/// Open (or focus) a read-only task board window for a bridge-provider
+/// workspace (desktop only). Each workspace gets its own window keyed by a
+/// stable label, so reopening the same workspace focuses the existing window.
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+#[tauri::command]
+async fn open_task_board_window(
+    app: tauri::AppHandle,
+    theme_state: State<'_, CurrentTheme>,
+    payload: TaskBoardPayload,
+) -> Result<(), String> {
+    let label = task_board_label(&payload.workspace_id);
+
+    if let Some(existing) = app.get_webview_window(&label) {
+        activate_window(&existing).map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+
+    let theme = theme_state.0.lock().map_err(|e| e.to_string())?.clone();
+    let payload_json = serde_json::to_value(&payload).map_err(|e| e.to_string())?;
+    let script = task_board_initialization_script(&theme, &payload_json);
+
+    WebviewWindowBuilder::new(
+        &app,
+        &label,
+        WebviewUrl::App(PathBuf::from("task-board.html")),
+    )
+    .title("Task Board")
     .inner_size(1100.0, 740.0)
     .min_inner_size(520.0, 360.0)
     .initialization_script(&script)
@@ -1471,6 +1542,8 @@ pub fn run() {
             open_code_view_window,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             open_bridge_explorer_window,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            open_task_board_window,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             relay_sdk_message,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
