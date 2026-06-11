@@ -1,0 +1,16 @@
+{
+  "identifier": "task-board-capability",
+  "description": "Permissions for task board windows",
+  "local": true,
+  "windows": [
+    "task-board-*"
+  ],
+  "permissions": [
+    "core:default",
+    "core:window:allow-close",
+    "store:allow-load",
+    "store:allow-get",
+    "os:allow-locale",
+    "allow-relay-sdk-message"
+  ]
+}
