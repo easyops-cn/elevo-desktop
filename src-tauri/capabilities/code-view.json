@@ -9,6 +9,7 @@
     "core:default",
     "core:window:allow-close",
     "allow-open-side-panel",
+    "allow-open-bridge-explorer-window",
     "store:allow-load",
     "store:allow-get",
     "os:allow-locale"

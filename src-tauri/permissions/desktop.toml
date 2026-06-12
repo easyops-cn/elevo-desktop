@@ -23,6 +23,13 @@ commands.allow = [
 ]
 
 [[permission]]
+identifier = "allow-open-bridge-explorer-window"
+description = "Allow local desktop windows to open the bridge workspace explorer window."
+commands.allow = [
+  "open_bridge_explorer_window",
+]
+
+[[permission]]
 identifier = "allow-relay-sdk-message"
 description = "Allow standalone local windows to relay SDK messages to the main window."
 commands.allow = [
