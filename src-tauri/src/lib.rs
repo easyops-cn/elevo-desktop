@@ -545,6 +545,9 @@ struct BridgeExplorerPayload {
     bridge_provider: String,
     matrix_token: String,
     homeserver_url: String,
+    /// Optional file path to select on open / push to an already-open window.
+    #[serde(default)]
+    initial_file_path: Option<String>,
 }
 
 /// Open (or focus) a read-only file explorer window for a bridge-provider
@@ -561,6 +564,16 @@ async fn open_bridge_explorer_window(
 
     if let Some(existing) = app.get_webview_window(&label) {
         activate_window(&existing).map_err(|e| e.to_string())?;
+        // Push the requested file selection to the already-open window so it
+        // switches to the file instead of merely focusing.
+        if let Some(path) = payload.initial_file_path.as_ref().filter(|p| !p.is_empty()) {
+            let js = format!(
+                "window.__ElevoMessengerSDK_receive__ && window.__ElevoMessengerSDK_receive__({}, {})",
+                serde_json::to_string("bridge-explorer-select-file").unwrap(),
+                serde_json::to_string(path).unwrap(),
+            );
+            let _ = existing.eval(&js);
+        }
         return Ok(());
     }
 
