@@ -343,13 +343,20 @@ fn emit_webview_titlebar_state(
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 fn resize_side_panel_children(app: &tauri::AppHandle, label: &str, width: f64, height: f64) {
     if let Some(titlebar) = app.get_webview(&side_panel_titlebar_label(label)) {
-        let _ = titlebar.set_position(tauri::LogicalPosition::new(0.0, 0.0));
-        let _ = titlebar.set_size(tauri::LogicalSize::new(width, SIDE_PANEL_TITLEBAR_HEIGHT));
+        let _ = titlebar.set_bounds(tauri::Rect {
+            position: tauri::Position::Logical(tauri::LogicalPosition::new(0.0, 0.0)),
+            size: tauri::Size::Logical(tauri::LogicalSize::new(width, SIDE_PANEL_TITLEBAR_HEIGHT)),
+        });
     }
     if let Some(content) = app.get_webview(&side_panel_content_label(label)) {
         let content_h = (height - SIDE_PANEL_TITLEBAR_HEIGHT).max(1.0);
-        let _ = content.set_position(tauri::LogicalPosition::new(0.0, SIDE_PANEL_TITLEBAR_HEIGHT));
-        let _ = content.set_size(tauri::LogicalSize::new(width, content_h));
+        let _ = content.set_bounds(tauri::Rect {
+            position: tauri::Position::Logical(tauri::LogicalPosition::new(
+                0.0,
+                SIDE_PANEL_TITLEBAR_HEIGHT,
+            )),
+            size: tauri::Size::Logical(tauri::LogicalSize::new(width, content_h)),
+        });
     }
 }
 
