@@ -369,6 +369,19 @@ fn activate_window(window: &tauri::WebviewWindow) -> Result<(), tauri::Error> {
 }
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
+fn activate_webview_window(
+    app: &tauri::AppHandle,
+    label: &str,
+    window: &tauri::WebviewWindow,
+) -> Result<(), tauri::Error> {
+    activate_window(window)?;
+    if let Some(webview) = app.get_webview(label) {
+        webview.set_focus()?;
+    }
+    Ok(())
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 fn activate_window_lossy(window: &tauri::WebviewWindow) {
     let _ = window.show();
     let _ = window.unminimize();
@@ -380,6 +393,16 @@ fn activate_plain_window(window: &tauri::Window) -> Result<(), tauri::Error> {
     window.show()?;
     window.unminimize()?;
     window.set_focus()?;
+    Ok(())
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+fn activate_child_webview_window(
+    window: &tauri::Window,
+    content: &tauri::Webview<tauri::Wry>,
+) -> Result<(), tauri::Error> {
+    activate_plain_window(window)?;
+    content.set_focus()?;
     Ok(())
 }
 
@@ -481,14 +504,14 @@ async fn open_preview_window(
             serde_json::to_string(&payload).map_err(|e| e.to_string())?,
         );
         existing.eval(&js).map_err(|e| e.to_string())?;
-        activate_window(&existing).map_err(|e| e.to_string())?;
+        activate_webview_window(&app, LABEL, &existing).map_err(|e| e.to_string())?;
         return Ok(());
     }
 
     let theme = theme_state.0.lock().map_err(|e| e.to_string())?.clone();
     let script = preview_initialization_script(&theme, &payload);
 
-    WebviewWindowBuilder::new(
+    let window = WebviewWindowBuilder::new(
         &app,
         LABEL,
         WebviewUrl::App(PathBuf::from("preview.html")),
@@ -499,6 +522,7 @@ async fn open_preview_window(
     .initialization_script(&script)
     .build()
     .map_err(|e| e.to_string())?;
+    activate_webview_window(&app, LABEL, &window).map_err(|e| e.to_string())?;
 
     Ok(())
 }
@@ -519,14 +543,14 @@ async fn open_code_view_window(
             serde_json::to_string(&payload).map_err(|e| e.to_string())?,
         );
         existing.eval(&js).map_err(|e| e.to_string())?;
-        activate_window(&existing).map_err(|e| e.to_string())?;
+        activate_webview_window(&app, LABEL, &existing).map_err(|e| e.to_string())?;
         return Ok(());
     }
 
     let theme = theme_state.0.lock().map_err(|e| e.to_string())?.clone();
     let script = code_view_initialization_script(&theme, &payload);
 
-    WebviewWindowBuilder::new(
+    let window = WebviewWindowBuilder::new(
         &app,
         LABEL,
         WebviewUrl::App(PathBuf::from("code-view.html")),
@@ -537,6 +561,7 @@ async fn open_code_view_window(
     .initialization_script(&script)
     .build()
     .map_err(|e| e.to_string())?;
+    activate_webview_window(&app, LABEL, &window).map_err(|e| e.to_string())?;
 
     Ok(())
 }
@@ -570,7 +595,7 @@ async fn open_bridge_explorer_window(
     let label = bridge_explorer_label(&payload.workspace_id);
 
     if let Some(existing) = app.get_webview_window(&label) {
-        activate_window(&existing).map_err(|e| e.to_string())?;
+        activate_webview_window(&app, &label, &existing).map_err(|e| e.to_string())?;
         // Push the requested file selection to the already-open window so it
         // switches to the file instead of merely focusing.
         if let Some(path) = payload.initial_file_path.as_ref().filter(|p| !p.is_empty()) {
@@ -588,7 +613,7 @@ async fn open_bridge_explorer_window(
     let payload_json = serde_json::to_value(&payload).map_err(|e| e.to_string())?;
     let script = bridge_explorer_initialization_script(&theme, &payload_json);
 
-    WebviewWindowBuilder::new(
+    let window = WebviewWindowBuilder::new(
         &app,
         &label,
         WebviewUrl::App(PathBuf::from("bridge-explorer.html")),
@@ -599,6 +624,7 @@ async fn open_bridge_explorer_window(
     .initialization_script(&script)
     .build()
     .map_err(|e| e.to_string())?;
+    activate_webview_window(&app, &label, &window).map_err(|e| e.to_string())?;
 
     Ok(())
 }
@@ -629,7 +655,7 @@ async fn open_task_board_window(
     let label = task_board_label(&payload.workspace_id);
 
     if let Some(existing) = app.get_webview_window(&label) {
-        activate_window(&existing).map_err(|e| e.to_string())?;
+        activate_webview_window(&app, &label, &existing).map_err(|e| e.to_string())?;
         return Ok(());
     }
 
@@ -637,7 +663,7 @@ async fn open_task_board_window(
     let payload_json = serde_json::to_value(&payload).map_err(|e| e.to_string())?;
     let script = task_board_initialization_script(&theme, &payload_json);
 
-    WebviewWindowBuilder::new(
+    let window = WebviewWindowBuilder::new(
         &app,
         &label,
         WebviewUrl::App(PathBuf::from("task-board.html")),
@@ -648,6 +674,7 @@ async fn open_task_board_window(
     .initialization_script(&script)
     .build()
     .map_err(|e| e.to_string())?;
+    activate_webview_window(&app, &label, &window).map_err(|e| e.to_string())?;
 
     Ok(())
 }
@@ -796,8 +823,10 @@ async fn open_side_panel(
                 serde_json::to_string(parsed.as_str()).map_err(|e| e.to_string())?,
             );
             content.eval(&js).map_err(|e| e.to_string())?;
+            activate_child_webview_window(&existing, &content).map_err(|e| e.to_string())?;
+        } else {
+            activate_plain_window(&existing).map_err(|e| e.to_string())?;
         }
-        activate_plain_window(&existing).map_err(|e| e.to_string())?;
         return Ok(());
     }
 
@@ -870,7 +899,7 @@ async fn open_side_panel(
     #[cfg(target_os = "macos")]
     let builder = builder.data_store_identifier(EXTERNAL_WEBVIEW_DATA_STORE_ID);
 
-    let _content = window
+    let content = window
         .add_child(
             builder,
             tauri::LogicalPosition::new(0.0, SIDE_PANEL_TITLEBAR_HEIGHT),
@@ -890,6 +919,7 @@ async fn open_side_panel(
         .set_position(tauri::PhysicalPosition::new(panel_x as i32, panel_y as i32))
         .map_err(|e| e.to_string())?;
     resize_side_panel_children(&app, &label, panel_w_logical, panel_h_logical);
+    activate_child_webview_window(&window, &content).map_err(|e| e.to_string())?;
 
     // Store label → roomId mapping for later filtering.
     state
