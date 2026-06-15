@@ -640,6 +640,9 @@ struct TaskBoardPayload {
     bridge_provider: String,
     matrix_token: String,
     homeserver_url: String,
+    /// Optional task slug to select on open / push to an already-open window.
+    #[serde(default)]
+    initial_task_slug: Option<String>,
 }
 
 /// Open (or focus) a read-only task board window for a bridge-provider
@@ -656,6 +659,16 @@ async fn open_task_board_window(
 
     if let Some(existing) = app.get_webview_window(&label) {
         activate_webview_window(&app, &label, &existing).map_err(|e| e.to_string())?;
+        // Push the requested task selection to the already-open window so it
+        // opens the task detail instead of merely focusing.
+        if let Some(slug) = payload.initial_task_slug.as_ref().filter(|s| !s.is_empty()) {
+            let js = format!(
+                "window.__ElevoMessengerSDK_receive__ && window.__ElevoMessengerSDK_receive__({}, {})",
+                serde_json::to_string("task-board-select-task").unwrap(),
+                serde_json::to_string(slug).unwrap(),
+            );
+            let _ = existing.eval(&js);
+        }
         return Ok(());
     }
 
