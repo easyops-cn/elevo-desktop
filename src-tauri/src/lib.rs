@@ -643,6 +643,12 @@ struct TaskBoardPayload {
     /// Optional task slug to select on open / push to an already-open window.
     #[serde(default)]
     initial_task_slug: Option<String>,
+    /// Optional status filter to apply on open / push to an already-open window.
+    #[serde(default)]
+    initial_status: Option<String>,
+    /// Optional view to apply on open / push to an already-open window.
+    #[serde(default)]
+    initial_view: Option<String>,
 }
 
 /// Open (or focus) a read-only task board window for a bridge-provider
@@ -659,13 +665,21 @@ async fn open_task_board_window(
 
     if let Some(existing) = app.get_webview_window(&label) {
         activate_webview_window(&app, &label, &existing).map_err(|e| e.to_string())?;
-        // Push the requested task selection to the already-open window so it
-        // opens the task detail instead of merely focusing.
-        if let Some(slug) = payload.initial_task_slug.as_ref().filter(|s| !s.is_empty()) {
+        // Push the requested selection/filter to the already-open window so it
+        // updates instead of merely focusing.
+        let message = serde_json::json!({
+            "initialTaskSlug": payload.initial_task_slug.as_ref().filter(|s| !s.is_empty()),
+            "initialStatus": payload.initial_status.as_ref().filter(|s| !s.is_empty()),
+            "initialView": payload.initial_view.as_ref().filter(|s| !s.is_empty()),
+        });
+        if message
+            .as_object()
+            .is_some_and(|object| object.values().any(|value| !value.is_null()))
+        {
             let js = format!(
                 "window.__ElevoMessengerSDK_receive__ && window.__ElevoMessengerSDK_receive__({}, {})",
                 serde_json::to_string("task-board-select-task").unwrap(),
-                serde_json::to_string(slug).unwrap(),
+                serde_json::to_string(&message).unwrap(),
             );
             let _ = existing.eval(&js);
         }
