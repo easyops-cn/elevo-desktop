@@ -1312,7 +1312,7 @@ dependencies = [
 
 [[package]]
 name = "elevo-messenger"
-version = "1.0.53"
+version = "1.0.54"
 dependencies = [
  "fontdue",
  "image",
